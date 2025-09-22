@@ -4,8 +4,15 @@ from a2a.server.request_handlers import DefaultRequestHandler
 import uvicorn
 from orchestrator.executor import OrchestratorExecutor
 from a2a.server.tasks import InMemoryTaskStore
+from orchestrator.config import validate_config
+
+
 
 def main():
+    if not validate_config():
+        print("Missing required configuration. Exiting.")
+        exit(1)
+
     skill = AgentSkill(
         id="orchestrator",
         name="Orchestrator",
