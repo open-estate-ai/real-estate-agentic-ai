@@ -5,11 +5,12 @@ from a2a.utils import new_agent_text_message
 
 class OrchestratorExecutor(AgentExecutor):
 
-    def __init__(self):
+    def __init__(self, context=RequestContext):
         self.agent = OrchestratorAgent()
+        self.context = context
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
-        result = await self.agent.invoke()
+        result = await self.agent.invoke(context)
         await event_queue.enqueue_event(new_agent_text_message(result))
     
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
