@@ -73,7 +73,7 @@ async def main() -> None:
             'message': {
                 'role': 'user',
                 'parts': [
-                    {'kind': 'text', 'text': 'Find RERA-approved plots under ₹80 lakh near metro, good for investment?'}
+                    {'kind': 'text', 'text': 'Find RERA-approved plots under ₹80 lakh near metro in Sonipat, Haryana, good for investment?'}
                 ],
                 'messageId': uuid4().hex,
             },
