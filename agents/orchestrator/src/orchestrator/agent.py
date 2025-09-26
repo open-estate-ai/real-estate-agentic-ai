@@ -76,7 +76,9 @@ class OrchestratorAgent:
         # Step 2: plan workflow using classification
         request_id = getattr(context, "request_id", str(uuid.uuid4()))
         planner_output = await self.plan_workflow(request_id, classify_intent_result)
-        logger.info("Planner Output: %s", planner_output.model_dump())
+        # logger.info("Planner Output: %s", planner_output.model_dump())
+        logger.info("Planner Output: %s", json.dumps(planner_output.model_dump(), indent=2))
+
 
         response = {
             "request_id": request_id,
