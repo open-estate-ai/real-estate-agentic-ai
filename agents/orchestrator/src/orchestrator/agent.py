@@ -8,6 +8,7 @@ from agents import Agent, Runner, trace
 
 from orchestrator.models.intent import IntentClassificationOutputSchema
 from orchestrator.planner import DeterministicPlanner, PlannerOutput, DAGTask
+from orchestrator.dag_executor import execute_dag
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,6 +80,10 @@ class OrchestratorAgent:
         # logger.info("Planner Output: %s", planner_output.model_dump())
         logger.info("Planner Output: %s", json.dumps(planner_output.model_dump(), indent=2))
 
+        dag_output =  await execute_dag(planner_output)
+        logger.info("DAG Execution Output: %s", json.dumps(dag_output, indent=2))
+
+        
 
         response = {
             "request_id": request_id,

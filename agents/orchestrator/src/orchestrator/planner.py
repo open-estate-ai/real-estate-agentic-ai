@@ -131,7 +131,7 @@ class DeterministicPlanner:
                     "raw_slots": slots
                 },
                 depends_on=[],
-                timeout_ms=7000,
+                timeout_ms=30000,
                 agent_prompt=self._prompt_search(slots)
             ))
 
