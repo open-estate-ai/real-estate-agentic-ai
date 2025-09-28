@@ -84,6 +84,10 @@ async def main() -> None:
             id=str(uuid4()), params=MessageSendParams(**send_message_payload)
         )
 
+        print("*************** Sending Message Request ***************")
+        print(request.model_dump(mode='json', exclude_none=True))
+        print("*******************************************************")
+
         response = await client.send_message(request)
         print(response.model_dump(mode='json', exclude_none=True))
         # --8<-- [end:send_message]

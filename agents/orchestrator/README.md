@@ -57,33 +57,33 @@ The code loads `.env` automatically.
 
 ---
 
-## Podman / Container Run
+## Docker / Container Run
 
 Build image:
 
 ```sh
-podman build . -t orchestrator-server
+docker buildx build --platform linux/amd64 --provenance=false -t orchestrator-server:1.0.0 .
 ```
 
 Run container (no env):
 
 ```sh
-podman run -p 9999:9999 orchestrator-server
+docker run --platform linux/amd64 -p 9999:9999 orchestrator-server:1.0.0
 ```
 
 Run with env file:
 
 ```sh
-podman run -p 9999:9999 --env-file ./.env orchestrator-server
+docker run --platform linux/amd64 -p 9999:9999 --env-file ./.env orchestrator-server:1.0.0
 ```
 
-If Podman not installed:
+If Docker not installed:
 
 ```sh
-brew install podman
-podman machine init
-podman machine start
-podman info
+# macOS
+brew install --cask docker
+
+# Or download from https://www.docker.com/products/docker-desktop/
 ```
 
 ---
@@ -92,7 +92,7 @@ podman info
 
 ```text
 agents/orchestrator/
-	Containerfile
+	Dockerfile
 	pyproject.toml
 	uv.lock
 	src/
