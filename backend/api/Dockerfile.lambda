@@ -27,4 +27,4 @@ RUN pip install --no-cache-dir \
 COPY api/src/ ${LAMBDA_TASK_ROOT}/src/
 
 # Set the Lambda handler
-CMD ["src.main.lambda_handler"]
+CMD ["src.lambda_handler.handler"]

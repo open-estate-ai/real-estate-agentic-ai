@@ -38,12 +38,13 @@ class PlannerClient:
         Raises:
             httpx.HTTPError: If request fails
         """
-        logger.info(f"Sending request to planner agent: {self.base_url}/plan")
+        logger.info(
+            f"Sending request to planner agent: {self.base_url}/user-query")
         logger.debug(f"Job ID: {job_id}, Query: {query}, User: {user_id}")
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/plan",
+                f"{self.base_url}/user-query",
                 json={
                     "job_id": job_id,
                     "query": query,

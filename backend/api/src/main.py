@@ -5,7 +5,7 @@ import os
 import uuid
 
 from fastapi import FastAPI, HTTPException
-from mangum import Mangum
+from pydantic import BaseModel
 from database import get_db_session, init_db
 
 from .clients import PlannerClient
@@ -20,18 +20,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 ENV = os.getenv("ENV", "local")
-PLANNER_AGENT_URL = os.getenv("PLANNER_AGENT_URL", "http://localhost:8080")
+PLANNER_AGENT_URL = os.getenv("PLANNER_AGENT_URL", "http://localhost:8081")
 
 # Create FastAPI app with /api prefix
 app = FastAPI(
     title="Backend API Service",
     description="Analyzes user queries and manages jobs",
-    version="0.1.0",
-    root_path="/api",  # Add this to handle /api prefix
+    version="0.1.0"
 )
 
 
-@app.get("/")
+@app.get("/api/")
 async def root():
     """Root endpoint."""
     return {
@@ -41,7 +40,7 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     """Health check with database status."""
     db_status = ApiService.check_database_health()
@@ -54,8 +53,14 @@ async def health():
     }
 
 
-@app.post("/analyze")
-async def analyze(query: str, user_id: str | None = None):
+class AnalyzeRequest(BaseModel):
+    """Request model for analyze endpoint."""
+    query: str
+    user_id: str | None = None
+
+
+@app.post("/api/analyze")
+async def analyze(request: AnalyzeRequest):
     """Analyze user query and create execution plan."""
     try:
         job_id = f"job-{uuid.uuid4().hex[:8]}"
@@ -64,11 +69,11 @@ async def analyze(query: str, user_id: str | None = None):
         if ENV == "local":
             # Local: Make HTTP call to planner agent
             logger.info("Using local planner agent via HTTP")
-            planner_client = PlannerClient(base_url=PLANNER_AGENT_URL)
+            planner_client = PlannerClient()
             result = await planner_client.create_plan(
                 job_id=job_id,
-                query=query,
-                user_id=user_id,
+                query=request.query,
+                user_id=request.user_id,
             )
 
             return {
@@ -87,7 +92,7 @@ async def analyze(query: str, user_id: str | None = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/jobs/{job_id}")
+@app.get("/api/jobs/{job_id}")
 async def get_job_status(job_id: str):
     """Get status of a planning job."""
     job = ApiService.get_job_details(job_id)
@@ -98,7 +103,7 @@ async def get_job_status(job_id: str):
     return job
 
 
-@app.get("/jobs/{job_id}/children")
+@app.get("/api/jobs/{job_id}/children")
 async def get_child_jobs(job_id: str):
     """Get all child jobs for a planning job."""
     children = ApiService.get_job_children(job_id)
@@ -108,5 +113,3 @@ async def get_child_jobs(job_id: str):
         "child_count": len(children),
         "children": children,
     }
-
-lambda_handler = Mangum(app)
