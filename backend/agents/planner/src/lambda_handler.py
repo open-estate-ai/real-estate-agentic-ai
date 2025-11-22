@@ -4,19 +4,13 @@ AWS Lambda handler for Planner Agent.
 This module handles SQS events and processes planning requests.
 """
 
-from .planner import create_plan
 import asyncio
-from database import (
-    JobRepository,
-    JobStatus,
-    JobType,
-    get_db_session,
-    init_db,
-)
 import json
-import os
 import uuid
 from typing import Any
+
+from database import JobStatus, get_db_session, init_db, JobRepository
+from .services import PlannerService
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -43,10 +37,10 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     print(f"📥 Received event: {json.dumps(event)}")
 
     # Initialize database on cold start
-    try:
-        init_db()
-    except Exception as e:
-        print(f"⚠️  Database already initialized or error: {e}")
+    # try:
+    #     init_db()
+    # except Exception as e:
+    #     print(f"⚠️  Database already initialized or error: {e}")
 
     results = []
 
@@ -95,7 +89,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             try:
                 message_id = record.get('messageId', str(uuid.uuid4()))
                 with get_db_session() as session:
-                    JobRepository.update_job_status(
+                    JobRepository.update_job(
                         session=session,
                         job_id=message_id,
                         status=JobStatus.FAILED,
@@ -134,7 +128,7 @@ async def process_planning_request(
     """
     Process a planning request.
 
-    This is the core logic shared between Lambda and FastAPI.
+    This delegates to the service layer for all business logic.
 
     Args:
         job_id: Unique job identifier
@@ -145,61 +139,12 @@ async def process_planning_request(
     Returns:
         Plan with child job IDs
     """
-    # Create parent planning job
-    with get_db_session() as session:
-        JobRepository.create_job(
-            session=session,
-            job_id=job_id,
-            job_type=JobType.PLANNING,
-            request_payload={
-                "query": query,
-                "user_id": user_id,
-                "context": context,
-            },
-        )
-
-        # Update to in_progress
-        JobRepository.update_job_status(
-            session=session,
-            job_id=job_id,
-            status=JobStatus.IN_PROGRESS,
-        )
-
-    # Create plan using LLM
-    plan = await create_plan(query, context)
-
-    # Create child jobs for each step
-    child_job_ids = []
-    with get_db_session() as session:
-        for step in plan["steps"]:
-            child_job_id = f"{job_id}-{step['agent']}-{uuid.uuid4().hex[:8]}"
-
-            JobRepository.create_job(
-                session=session,
-                job_id=child_job_id,
-                job_type=JobType[step["agent"].upper()],
-                request_payload=step.get("payload", {}),
-                parent_job_id=job_id,
-            )
-            child_job_ids.append(child_job_id)
-
-    # Update parent job with plan
-    with get_db_session() as session:
-        JobRepository.update_job_response(
-            session=session,
-            job_id=job_id,
-            response_payload={
-                "plan": plan,
-                "child_jobs": child_job_ids,
-            },
-            status=JobStatus.COMPLETED,
-        )
-
-    return {
-        "job_id": job_id,
-        "plan": plan,
-        "child_jobs": child_job_ids,
-    }
+    return await PlannerService.create_plan_for_query(
+        job_id=job_id,
+        query=query,
+        user_id=user_id,
+        context=context,
+    )
 
 
 # For local testing

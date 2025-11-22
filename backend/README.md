@@ -58,11 +58,11 @@ docker ps | grep 9000 && docker stop $(docker ps -q --filter "publish=9000")
 
 # Run Lambda container locally
 docker run --rm -p 9000:8080 \
-  -e DB_HOST=host.docker.internal \
-  -e DB_PORT=5432 \
-  -e DB_NAME=real_estate_agents \
-  -e DB_USER=postgres \
-  -e DB_PASSWORD=postgres \
+  -e DATABASE_HOST=host.docker.internal \
+  -e DATABASE_PORT=5432 \
+  -e DATABASE_NAME=real_estate_agents \
+  -e DATABASE_USER=postgres \
+  -e DATABASE_PASSWORD=postgres \
   -e AWS_ACCESS_KEY_ID=your_key \
   -e AWS_SECRET_ACCESS_KEY=your_secret \
   -e AWS_REGION=us-east-1 \

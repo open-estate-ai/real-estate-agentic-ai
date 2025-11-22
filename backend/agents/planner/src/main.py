@@ -1,32 +1,27 @@
 """
 Planner Agent - FastAPI application.
 
-This agent receives user queries from SQS, creates a plan of agent tasks,
+This agent receives user queries, creates a plan of agent tasks,
 and stores the plan in the database for execution by downstream agents.
 """
 
-from .planner import create_plan
-from database import (
-    JobRepository,
-    JobStatus,
-    JobType,
-    get_db_session,
-    init_db,
-)
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from database import get_db_session, init_db
+
+from .services import PlannerService
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database on startup."""
-    print("🚀 Initializing Planner Agent...")
-    init_db()
-    print("✅ Database initialized")
+    # print("🚀 Initializing Planner Agent...")
+    # init_db()
+    # print("✅ Database initialized")
     yield
     print("👋 Shutting down Planner Agent")
 
@@ -86,23 +81,9 @@ async def health():
 
 @app.post("/plan", response_model=PlanResponse)
 async def plan_query(request: PlanRequest):
-    """
-    Create an execution plan for a user query.
-
-    This endpoint simulates an SQS message for local testing.
-    It uses the same processing logic as the Lambda handler.
-
-    This endpoint:
-    1. Creates a parent planning job in the database
-    2. Uses LLM to analyze the query and create a plan
-    3. Creates child jobs for each step in the plan
-    4. Returns the plan with job IDs
-    """
-    # Import the shared processing function
-    from .lambda_handler import process_planning_request
-
+    """Create an execution plan for a user query."""
     try:
-        result = await process_planning_request(
+        result = await PlannerService.create_plan_for_query(
             job_id=request.job_id,
             query=request.query,
             user_id=request.user_id,
@@ -116,44 +97,27 @@ async def plan_query(request: PlanRequest):
         )
 
     except Exception as e:
-        # Update job as failed
-        try:
-            with get_db_session() as session:
-                JobRepository.update_job_status(
-                    session=session,
-                    job_id=request.job_id,
-                    status=JobStatus.FAILED,
-                    error_message=str(e),
-                )
-        except Exception:
-            pass
-
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/jobs/{job_id}")
 async def get_job_status(job_id: str):
     """Get status of a planning job."""
-    with get_db_session() as session:
-        job = JobRepository.get_job(session=session, job_id=job_id)
+    job = PlannerService.get_job_details(job_id)
 
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
-        return job.to_dict()
+    return job
 
 
 @app.get("/jobs/{job_id}/children")
 async def get_child_jobs(job_id: str):
     """Get all child jobs for a planning job."""
-    with get_db_session() as session:
-        children = JobRepository.get_child_jobs(
-            session=session,
-            parent_job_id=job_id,
-        )
+    children = PlannerService.get_job_children(job_id)
 
-        return {
-            "parent_job_id": job_id,
-            "child_count": len(children),
-            "children": [child.to_dict() for child in children],
-        }
+    return {
+        "parent_job_id": job_id,
+        "child_count": len(children),
+        "children": children,
+    }

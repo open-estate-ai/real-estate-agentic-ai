@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir \
     litellm>=1.50.0
 
 # Copy application code
-COPY agents/planner/src/ ${LAMBDA_TASK_ROOT}/
+COPY agents/planner/src/ ${LAMBDA_TASK_ROOT}/src/
 
 # Set the Lambda handler
-CMD ["lambda_handler.lambda_handler"]
+CMD ["src.lambda_handler.lambda_handler"]
