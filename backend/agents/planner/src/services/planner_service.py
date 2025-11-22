@@ -104,17 +104,17 @@ class PlannerService:
                 )
             raise
 
-    @staticmethod
-    def get_job_details(job_id: str) -> dict[str, Any] | None:
-        """Get job details by ID."""
-        with get_db_session() as session:
-            job = JobRepository.get_job(session=session, job_id=job_id)
-            return job.to_dict() if job else None
+    # @staticmethod
+    # def get_job_details(job_id: str) -> dict[str, Any] | None:
+    #     """Get job details by ID."""
+    #     with get_db_session() as session:
+    #         job = JobRepository.get_job(session=session, job_id=job_id)
+    #         return job.to_dict() if job else None
 
-    @staticmethod
-    def get_job_children(job_id: str) -> list[dict[str, Any]]:
-        """Get all child jobs for a parent job."""
-        with get_db_session() as session:
-            children = JobRepository.get_child_jobs(
-                session=session, parent_job_id=job_id)
-            return [child.to_dict() for child in children]
+    # @staticmethod
+    # def get_job_children(job_id: str) -> list[dict[str, Any]]:
+    #     """Get all child jobs for a parent job."""
+    #     with get_db_session() as session:
+    #         children = JobRepository.get_child_jobs(
+    #             session=session, parent_job_id=job_id)
+    #         return [child.to_dict() for child in children]

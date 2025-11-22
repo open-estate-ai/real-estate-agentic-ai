@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: planner-agent
+  name: backend-api
   labels:
-    app: planner-agent
+    app: backend-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: planner-agent
+      app: backend-api
   template:
     metadata:
       labels:
-        app: planner-agent
+        app: backend-api
     spec:
       containers:
-        - name: planner-agent
-          image: planner-agent
+        - name: backend-api
+          image: backend-api
           ports:
-            - containerPort: 8081
+            - containerPort: 8080
               name: http
           envFrom:
             - configMapRef:
@@ -34,13 +34,13 @@ spec:
               cpu: "500m"
           livenessProbe:
             httpGet:
-              path: /health
-              port: 8081
+              path: /api/health
+              port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
-              port: 8081
+              path: /api/health
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5

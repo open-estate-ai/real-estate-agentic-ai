@@ -17,7 +17,7 @@ tilt up
 curl http://localhost:8080/health
 
 # Create a plan
-curl -X POST http://localhost:8080/plan \
+curl -X POST http://localhost:8081/user-query \
   -H "Content-Type: application/json" \
   -d '{
     "job_id": "test-'$(date +%s)'",

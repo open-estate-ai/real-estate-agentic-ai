@@ -2,12 +2,14 @@
 TARGET_ARCH = 'arm64'
 
 ENV = 'local'
+LOG_LEVEL=os.getenv('LOG_LEVEL', 'INFO')
 OPENAI_API_KEY=os.getenv('OPENAI_API_KEY', '')
 AWS_ACCESS_KEY_ID=os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY=os.getenv("AWS_SECRET_ACCESS_KEY", '')
 AWS_REGION=os.getenv('AWS_REGION', 'us-east-1')
 REGION=os.getenv('REGION', 'ap-south-1')
 LLM_MODEL=os.getenv('LLM_MODEL', 'bedrock/anthropic.claude-3-haiku-20240307-v1:0')
+PLANNER_AGENT_URL=os.getenv('PLANNER_AGENT_URL', 'http://localhost:8081')
 
 DATABASE_HOST = 'postgresql.real-estate-agentic-ai.svc.cluster.local'
 DATABASE_URL = 'postgresql.real-estate-agentic-ai.svc.cluster.local'
@@ -18,13 +20,15 @@ DATABASE_PORT = 5432
 
 
 shared_config_map_data = {
+    'LOG_LEVEL': LOG_LEVEL,
     'ENV': ENV,
     'OPENAI_API_KEY': OPENAI_API_KEY,
     'AWS_ACCESS_KEY_ID': AWS_ACCESS_KEY_ID,
     'AWS_SECRET_ACCESS_KEY': AWS_SECRET_ACCESS_KEY,
     'AWS_REGION': AWS_REGION,
     'REGION': REGION,
-    'LLM_MODEL': LLM_MODEL
+    'LLM_MODEL': LLM_MODEL,
+    'PLANNER_AGENT_URL': PLANNER_AGENT_URL,
 }
 
 
@@ -68,7 +72,6 @@ local_resource(
 watch_file('backend/shared/database/migrations/')
 
 
-
 docker_build('planner-agent', './backend',
     dockerfile='./backend/agents/planner/Dockerfile',
     target='localdev',
@@ -77,4 +80,15 @@ docker_build('planner-agent', './backend',
     ], build_args={
         'TARGET_ARCH': TARGET_ARCH,
     })
-k8s_resource('planner-agent', port_forwards='8080:8080')
+
+docker_build('backend-api', './backend',
+    dockerfile='./backend/api/Dockerfile',
+    target='localdev',
+    live_update=[
+        sync('./backend/api', '/workspace/api'),
+    ], build_args={
+        'TARGET_ARCH': TARGET_ARCH,
+    })
+
+k8s_resource('planner-agent', port_forwards='8081:8081')
+k8s_resource('backend-api', port_forwards='8080:8080')

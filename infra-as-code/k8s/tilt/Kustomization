@@ -5,3 +5,4 @@ resources:
   - deployment_postgres.yaml
   - service_postgres.yaml
   - deployment_planner.yaml
+  - deployment_api.yaml

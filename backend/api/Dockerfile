@@ -11,36 +11,36 @@ WORKDIR /workspace
 # Build
 FROM base AS build
 RUN pip install --no-cache-dir uv
-ENV UV_PROJECT_ENVIRONMENT=/workspace/agents/planner/.venv
+ENV UV_PROJECT_ENVIRONMENT=/workspace/api/.venv
 
 # Copy the entire backend structure to maintain relative paths
 COPY shared /workspace/shared/
-COPY agents/planner /workspace/agents/planner/
+COPY api /workspace/api/
 
 # Install shared module first
 RUN cd /workspace/shared && pip install .
 
 # Install planner dependencies with uv
-WORKDIR /workspace/agents/planner
+WORKDIR /workspace/api
 RUN uv sync --frozen
 
 # Local dev
 FROM build AS localdev
 ENV PYTHONUNBUFFERED=1 ENV=local
-ENV PATH=/workspace/agents/planner/.venv/bin:$PATH
-WORKDIR /workspace/agents/planner
+ENV PATH=/workspace/api/.venv/bin:$PATH
+WORKDIR /workspace/api
 
-CMD ["hypercorn", "src.local_api:app", "--bind", "0.0.0.0:8081", "--reload"]
+CMD ["hypercorn", "src.main:app", "--bind", "0.0.0.0:8080", "--reload"]
 
 # Production
 FROM base AS dist
-COPY --chown=app:app --from=build /workspace/agents/planner /workspace/agents/planner
+COPY --chown=app:app --from=build /workspace/api /workspace/api
 COPY --chown=app:app --from=build /workspace/shared /workspace/shared
 RUN pip install --no-cache-dir uv && cd /workspace/shared && pip install .
 USER 5555
 
-ENV PATH=/workspace/agents/planner/.venv/bin:$PATH
+ENV PATH=/workspace/api/.venv/bin:$PATH
 ENV PYTHONUNBUFFERED=1 HYPERCORN_WORKERS=1
-WORKDIR /workspace/agents/planner
+WORKDIR /workspace/api
 
-CMD ["sh", "-c", "hypercorn src.local_api:app --bind 0.0.0.0:8081 --workers ${HYPERCORN_WORKERS}"]
+CMD ["sh", "-c", "hypercorn src.main:app --bind 0.0.0.0:8080 --workers ${HYPERCORN_WORKERS}"]

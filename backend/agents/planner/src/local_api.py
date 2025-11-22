@@ -79,7 +79,7 @@ async def health():
     }
 
 
-@app.post("/plan", response_model=PlanResponse)
+@app.post("/user-query", response_model=PlanResponse)
 async def plan_query(request: PlanRequest):
     """Create an execution plan for a user query."""
     try:
@@ -100,24 +100,24 @@ async def plan_query(request: PlanRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/jobs/{job_id}")
-async def get_job_status(job_id: str):
-    """Get status of a planning job."""
-    job = PlannerService.get_job_details(job_id)
+# @app.get("/jobs/{job_id}")
+# async def get_job_status(job_id: str):
+#     """Get status of a planning job."""
+#     job = PlannerService.get_job_details(job_id)
 
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+#     if not job:
+#         raise HTTPException(status_code=404, detail="Job not found")
 
-    return job
+#     return job
 
 
-@app.get("/jobs/{job_id}/children")
-async def get_child_jobs(job_id: str):
-    """Get all child jobs for a planning job."""
-    children = PlannerService.get_job_children(job_id)
+# @app.get("/jobs/{job_id}/children")
+# async def get_child_jobs(job_id: str):
+#     """Get all child jobs for a planning job."""
+#     children = PlannerService.get_job_children(job_id)
 
-    return {
-        "parent_job_id": job_id,
-        "child_count": len(children),
-        "children": children,
-    }
+#     return {
+#         "parent_job_id": job_id,
+#         "child_count": len(children),
+#         "children": children,
+#     }
