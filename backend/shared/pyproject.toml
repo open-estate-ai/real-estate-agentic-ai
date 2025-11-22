@@ -1,0 +1,19 @@
+[project]
+name = "real-estate-shared"
+version = "0.1.0"
+description = "Shared modules for real estate agents (database, utils, etc.)"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Include all shared modules: database, and future modules (utils, etc.)
+packages = ["database"]

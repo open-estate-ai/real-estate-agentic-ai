@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: planner-agent
+  labels:
+    app: planner-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: planner-agent
+  template:
+    metadata:
+      labels:
+        app: planner-agent
+    spec:
+      containers:
+        - name: planner-agent
+          image: planner-agent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: shared-config
+            - configMapRef:
+                name: postgres-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
