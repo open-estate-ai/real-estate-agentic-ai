@@ -147,8 +147,92 @@ resource "aws_rds_cluster_instance" "aurora" {
   performance_insights_enabled = false # Save costs in development
 }
 
+# ========================================
+# VPC Endpoints for Lambda to access AWS Services
+# ========================================
+# Lambda in VPC needs VPC endpoints to reach AWS services without NAT Gateway
 
+# Security group for VPC endpoints
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${local.resource_name_prefix_hyphenated}-vpc-endpoints-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = data.aws_vpc.default.id
 
+  # Allow HTTPS from Lambda security group
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda_aurora_access.id]
+    description     = "Allow HTTPS from Lambda"
+  }
+
+  # Allow HTTPS from VPC CIDR
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+    description = "Allow HTTPS from VPC"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-vpc-endpoints-sg"
+    Environment = var.env
+  }
+}
+
+# VPC Endpoint for SSM (required for Parameter Store)
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-ssm-endpoint"
+    Environment = var.env
+  }
+}
+
+# VPC Endpoint for SSM Messages (required for Session Manager if needed)
+resource "aws_vpc_endpoint" "ssmmessages" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.region}.ssmmessages"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-ssmmessages-endpoint"
+    Environment = var.env
+  }
+}
+
+# VPC Endpoint for KMS (required for decrypting SecureString parameters)
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.region}.kms"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-kms-endpoint"
+    Environment = var.env
+  }
+}
 
 # ========================================
 # IAM Policy for Lambda Aurora Access
@@ -157,7 +241,7 @@ resource "aws_rds_cluster_instance" "aurora" {
 
 resource "aws_iam_policy" "lambda_aurora_access" {
   name        = "${local.resource_name_prefix_hyphenated}-lambda-aurora-access"
-  description = "Policy for Lambda functions to access Aurora with IAM auth, Data API, and Secrets Manager"
+  description = "Policy for Lambda functions to access Aurora Data API and SSM Parameter Store for credentials"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -199,14 +283,7 @@ resource "aws_iam_policy" "lambda_aurora_access" {
           }
         }
       },
-      {
-        Sid    = "RDSIAMAuthentication"
-        Effect = "Allow"
-        Action = [
-          "rds-db:connect"
-        ]
-        Resource = "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.aurora.cluster_resource_id}/${var.db_admin_username}"
-      }
+
     ]
   })
 }

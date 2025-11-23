@@ -48,8 +48,8 @@ output "database_port" {
   value       = "5432"
 }
 
-output "iam_database_user" {
-  description = "IAM-enabled database username for Lambda connections"
+output "master_username" {
+  description = "Master database username"
   value       = var.db_admin_username
 }
 

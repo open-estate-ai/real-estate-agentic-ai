@@ -34,10 +34,10 @@ module "tf_lambda_backend_api" {
       DATABASE_HOST   = module.aurora_serverless_pg.aurora_cluster_endpoint
       DATABASE_PORT   = module.aurora_serverless_pg.database_port
       DATABASE_NAME   = module.aurora_serverless_pg.database_name
-      DATABASE_USER   = module.aurora_serverless_pg.iam_database_user
+      DATABASE_USER   = module.aurora_serverless_pg.master_username
       DB_POOL_SIZE    = "2"
       DB_POOL_RECYCLE = "3600"
-      # Lambda always uses IAM auth - no password needed
+      # Lambda fetches password from SSM Parameter Store
     },
     # Only add planner agent URL if configured
     var.planner_agent_url != "" ? {

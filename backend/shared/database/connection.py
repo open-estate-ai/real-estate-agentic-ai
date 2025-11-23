@@ -42,36 +42,59 @@ MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
 # =============================================================================
-# AWS RDS SERVERLESS IAM AUTHENTICATION
+# AWS SSM PARAMETER STORE FOR CREDENTIALS
 # =============================================================================
 
 
-def _get_rds_iam_token() -> str:
+def _get_ssm_parameter(parameter_name: str, decrypt: bool = False) -> str:
     """
-    Generate IAM authentication token for RDS Serverless.
+    Get parameter value from AWS SSM Parameter Store.
 
-    Required for Lambda (ENV != local). No fallback.
+    Args:
+        parameter_name: SSM parameter name
+        decrypt: Whether to decrypt SecureString parameters
 
     Returns:
-        str: Temporary RDS authentication token
+        str: Parameter value
 
     Raises:
-        Exception: If IAM token generation fails
+        Exception: If parameter retrieval fails
     """
     import boto3
 
     region = os.getenv("AWS_REGION", "us-east-1")
+    ssm_client = boto3.client('ssm', region_name=region)
 
-    # Generate RDS IAM token (valid for 15 minutes)
-    client = boto3.client('rds', region_name=region)
-    token = client.generate_db_auth_token(
-        DBHostname=DB_HOST,
-        Port=int(DB_PORT),
-        DBUsername=DB_USER,
-        Region=region
-    )
-    print(f"[DB] Generated IAM auth token for {DB_USER}@{DB_HOST}")
-    return token
+    try:
+        response = ssm_client.get_parameter(
+            Name=parameter_name,
+            WithDecryption=decrypt
+        )
+        return response['Parameter']['Value']
+    except Exception as e:
+        print(f"[DB] Error retrieving SSM parameter {parameter_name}: {e}")
+        raise
+
+
+def _get_aws_db_credentials() -> tuple[str, str]:
+    """
+    Get database credentials from AWS SSM Parameter Store.
+
+    Returns:
+        tuple: (username, password)
+
+    Raises:
+        Exception: If credential retrieval fails
+    """
+    env = os.getenv("ENV", "dev")
+    ssm_prefix = f"/{env}/{env}-open-estate-ai"
+
+    print(f"[DB] Fetching credentials from SSM Parameter Store...")
+    username = _get_ssm_parameter(f"{ssm_prefix}/db/username", decrypt=False)
+    password = _get_ssm_parameter(f"{ssm_prefix}/db/password", decrypt=True)
+
+    print(f"[DB] Retrieved credentials for user: {username}")
+    return username, password
 
 # =============================================================================
 # DATABASE URL CONSTRUCTION
@@ -87,8 +110,9 @@ def _build_database_url() -> str:
         - postgresql://user:pass@localhost:5432/dbname
 
     AWS Lambda (ENV=dev/stage/production):
-        - Connects to AWS RDS Serverless with IAM authentication (ONLY)
-        - postgresql://user:token@rds-serverless-endpoint:5432/dbname?sslmode=require
+        - Connects to AWS RDS Serverless with password authentication
+        - Credentials retrieved from SSM Parameter Store
+        - postgresql://user:pass@rds-serverless-endpoint:5432/dbname?sslmode=require
 
     Returns:
         str: Database connection URL
@@ -98,11 +122,10 @@ def _build_database_url() -> str:
         url = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         print(f"[DB] LOCAL: Connecting to {DB_HOST}:{DB_PORT}/{DB_NAME}")
     else:
-        # AWS LAMBDA: RDS Serverless with IAM authentication (ONLY)
-        token = _get_rds_iam_token()
-        url = f"postgresql://{DB_USER}:{token}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
-        print(
-            f"[DB] AWS LAMBDA ({ENV}): Connecting to RDS Serverless with IAM auth")
+        # AWS LAMBDA: RDS Serverless with password auth from SSM Parameter Store
+        username, password = _get_aws_db_credentials()
+        url = f"postgresql://{username}:{password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?sslmode=require"
+        print(f"[DB] AWS LAMBDA ({ENV}): Connecting to RDS Serverless")
         print(f"[DB] Endpoint: {DB_HOST}:{DB_PORT}/{DB_NAME}")
 
     return url
@@ -153,7 +176,7 @@ def get_engine() -> Engine:
             print(
                 f"[DB] Engine created: pool_size={POOL_SIZE}, max_overflow={MAX_OVERFLOW}")
         else:
-            # AWS LAMBDA: Serverless-optimized configuration with IAM auth
+            # AWS LAMBDA: Serverless-optimized configuration with password auth
             lambda_pool_size = int(os.getenv("DB_POOL_SIZE", "2"))
             lambda_pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 
@@ -164,13 +187,13 @@ def get_engine() -> Engine:
                 "pool_recycle": lambda_pool_recycle,  # Recycle connections
                 "pool_pre_ping": True,  # Verify before use
                 "echo": os.getenv("DB_ECHO", "false").lower() == "true",
-                # SSL required for IAM auth
+                # SSL required for RDS
                 "connect_args": {"sslmode": "require"},
             }
 
             _engine = create_engine(DATABASE_URL, **engine_config)
             print(f"[DB] Engine created: pool_size={lambda_pool_size}, "
-                  f"pool_recycle={lambda_pool_recycle}s, iam_auth=true")
+                  f"pool_recycle={lambda_pool_recycle}s, password_auth=true")
 
     return _engine
 
