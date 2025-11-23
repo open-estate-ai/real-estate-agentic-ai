@@ -36,3 +36,15 @@ variable "additional_iam_policy_arns" {
   description = "Optional: Additional IAM policy ARNs to attach to Lambda role (e.g., Aurora access policy)"
   default     = []
 }
+
+variable "vpc_subnet_ids" {
+  type        = list(string)
+  description = "Optional: VPC subnet IDs for Lambda function"
+  default     = []
+}
+
+variable "vpc_security_group_ids" {
+  type        = list(string)
+  description = "Optional: VPC security group IDs for Lambda function"
+  default     = []
+}

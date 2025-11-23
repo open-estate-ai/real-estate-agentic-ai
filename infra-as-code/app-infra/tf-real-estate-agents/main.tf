@@ -20,6 +20,10 @@ module "tf_lambda_backend_api" {
   # Attach Aurora access policy to Lambda's own role
   additional_iam_policy_arns = [module.aurora_serverless_pg.aurora_access_policy_arn]
 
+  # VPC configuration to access Aurora in private subnets
+  vpc_subnet_ids         = module.aurora_serverless_pg.subnet_ids
+  vpc_security_group_ids = [module.aurora_serverless_pg.lambda_security_group_id]
+
   environment_variables = merge(
     {
       ENV       = var.env

@@ -38,6 +38,13 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Attach VPC execution policy if Lambda is in VPC
+resource "aws_iam_role_policy_attachment" "lambda_vpc_execution" {
+  count      = length(var.vpc_subnet_ids) > 0 ? 1 : 0
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 # Attach additional IAM policies (e.g., Aurora access)
 resource "aws_iam_role_policy_attachment" "additional_policies" {
   count      = length(var.additional_iam_policy_arns)
@@ -75,9 +82,19 @@ resource "aws_lambda_function" "docker_image_lambda" {
     }
   }
 
+  # VPC configuration for accessing private resources (e.g., RDS)
+  dynamic "vpc_config" {
+    for_each = length(var.vpc_subnet_ids) > 0 ? [1] : []
+    content {
+      subnet_ids         = var.vpc_subnet_ids
+      security_group_ids = var.vpc_security_group_ids
+    }
+  }
+
   depends_on = [
     null_resource.build_and_push_image,
     aws_iam_role_policy_attachment.lambda_basic_logs,
+    aws_iam_role_policy_attachment.lambda_vpc_execution,
     aws_iam_role_policy_attachment.additional_policies
   ]
 }

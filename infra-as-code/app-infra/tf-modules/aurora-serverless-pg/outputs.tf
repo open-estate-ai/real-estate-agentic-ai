@@ -52,3 +52,23 @@ output "iam_database_user" {
   description = "IAM-enabled database username for Lambda connections"
   value       = var.db_admin_username
 }
+
+output "vpc_id" {
+  description = "VPC ID where Aurora is deployed"
+  value       = data.aws_vpc.default.id
+}
+
+output "subnet_ids" {
+  description = "Subnet IDs for Lambda VPC configuration"
+  value       = data.aws_subnets.default.ids
+}
+
+output "lambda_security_group_id" {
+  description = "Security group ID for Lambda functions to access Aurora"
+  value       = aws_security_group.lambda_aurora_access.id
+}
+
+output "aurora_security_group_id" {
+  description = "Security group ID for Aurora cluster"
+  value       = aws_security_group.aurora.id
+}

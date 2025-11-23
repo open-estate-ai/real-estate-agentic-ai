@@ -53,18 +53,43 @@ resource "aws_db_subnet_group" "aurora" {
   subnet_ids = data.aws_subnets.default.ids
 }
 
+# Security group for Lambda functions accessing Aurora
+resource "aws_security_group" "lambda_aurora_access" {
+  name        = "${local.resource_name_prefix_hyphenated}-lambda-sg"
+  description = "Security group for Lambda functions to access Aurora"
+  vpc_id      = data.aws_vpc.default.id
+
+  # Allow all outbound traffic (Lambda needs to call Aurora)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 # Security group for Aurora
 resource "aws_security_group" "aurora" {
   name        = "${local.resource_name_prefix_hyphenated}-sg"
-  description = "Security group for Alex Aurora cluster"
+  description = "Security group for Aurora cluster"
   vpc_id      = data.aws_vpc.default.id
 
-  # Allow PostgreSQL access from within VPC
+  # Allow PostgreSQL access from Lambda security group
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda_aurora_access.id]
+    description     = "Allow Lambda functions to access Aurora"
+  }
+
+  # Allow PostgreSQL access from within VPC (for debugging/administration)
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
     cidr_blocks = [data.aws_vpc.default.cidr_block]
+    description = "Allow VPC access to Aurora"
   }
 
   egress {
