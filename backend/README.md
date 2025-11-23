@@ -1,169 +1,145 @@
 # Backend
 
-Multi-agent system for real estate AI.
+Multi-agent system for real estate AI with layered architecture.
+
+## What's Inside
+
+- **API Service** - Entry point that receives user queries and coordinates agents
+- **Agents** - Specialized services (Planner, Search, Valuation, etc.)
+- **Shared** - Common modules for database, models, and utilities
 
 ## Local Development
 
+Run all services with Tilt:
+
 ```bash
-# From repo root
 cd real-estate-agentic-ai
 tilt up
 ```
 
-### Test Planner Agent API
+This starts:
+- Backend API on port 9000
+- Planner Agent on port 8081
+- PostgreSQL database
+
+## Architecture
+
+```mermaid
+graph LR
+    User([User]):::userStyle --> API[Backend API<br/>FastAPI]:::apiStyle
+    API -->|HTTP Local<br/>Local Testing| Planner[Planner Agent<br/>LLM Analysis]:::agentStyle
+    API -->|Production| SQS[AWS SQS<br/>Queue]:::sqsStyle
+    SQS --> Planner
+    API --> DB[(PostgreSQL<br/>Database)]:::dbStyle
+    Planner --> DB
+    Planner --> LLM[AWS Bedrock<br/>Claude]:::llmStyle
+    
+    API -.- Shared[Shared Modules<br/>Models & Repository]:::sharedStyle
+    Planner -.- Shared
+    
+    classDef userStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px,color:#000
+    classDef apiStyle fill:#fff3e0,stroke:#f57c00,stroke-width:3px,color:#000
+    classDef agentStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
+    classDef sharedStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
+    classDef dbStyle fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#000
+    classDef llmStyle fill:#e0f2f1,stroke:#00695c,stroke-width:2px,color:#000
+    classDef sqsStyle fill:#fff9c4,stroke:#f57f17,stroke-width:2px,color:#000
+```
+
+**Component Colors:**
+- 🟠 **Orange** - API Service (Entry point)
+- 🟣 **Purple** - Agents (Business logic)
+- 🟢 **Green** - Shared Modules (Common code)
+- 🔴 **Pink** - Database (Data storage)
+- 🔵 **Teal** - External LLM (AWS Bedrock)
+- 🟡 **Yellow** - AWS SQS (Message queue for production)
+
+The system uses a clean layered architecture:
+- **API Layer** - HTTP endpoints and request handling
+- **Service Layer** - Business logic and orchestration
+- **Repository Layer** - Database operations
+- **Model Layer** - Data structures and schemas
+
+## Components
+
+### Backend API Service
+
+Entry point for the system. Routes requests to appropriate agents.
+
+[See API README](api/README.md) for details on:
+- Running locally with Tilt
+- Testing endpoints
+- Running as Lambda locally
+- Environment variables
+
+### Agents
+
+#### Planner Agent
+
+The first agent in the pipeline. Reads from SQS, analyzes queries with LLM, creates execution plans.
+
+[See Planner Agent README](agents/planner/README.md) for details on:
+- Running locally with Tilt
+- Testing with sample queries
+- Running as Lambda locally
+- Lambda deployment
+
+### Shared Modules
+
+Common code used across all services.
+
+**Database Module:**
+- SQLAlchemy models (Job, etc.)
+- Repository layer for CRUD operations
+- Database session management
+
+**Location:** `shared/`
+
+## Quick Test
+
+Test the full flow locally:
 
 ```bash
-# Health check
-curl http://localhost:8080/health
-
-# Create a plan
-curl -X POST http://localhost:8081/user-query \
+# Submit a query
+curl -X POST http://localhost:9000/api/analyze \
   -H "Content-Type: application/json" \
   -d '{
-    "job_id": "test-'$(date +%s)'",
-    "query": "Find 3BHK apartments in Noida under 1 crore with parking",
-    "user_id": "test-user-123"
+    "query": "Find 3BHK apartments in Noida under 1 crore",
+    "user_id": "user-123"
   }'
 
-# Get job status
-curl http://localhost:8080/jobs/<job_id>
-
-# Get child jobs
-curl http://localhost:8080/jobs/<job_id>/children
+# Check status (use job_id from response)
+curl http://localhost:9000/api/jobs/{job_id}
 ```
 
-## Docker Builds
-
-### Planner Agent (Local/Dev)
-
-```bash
-cd backend
-docker build -f agents/planner/Dockerfile -t planner-agent --target localdev .
-```
-
-### Planner Agent (Lambda)
-
-```bash
-cd backend
-docker build -f agents/planner/Dockerfile.lambda -t planner-agent-lambda .
-```
-
-## Test Lambda Locally
-
-```bash
-cd backend
-
-# Stop any existing container on port 9000
-docker ps | grep 9000 && docker stop $(docker ps -q --filter "publish=9000")
-
-# Run Lambda container locally
-docker run --rm -p 9000:8080 \
-  -e DATABASE_HOST=host.docker.internal \
-  -e DATABASE_PORT=5432 \
-  -e DATABASE_NAME=real_estate_agents \
-  -e DATABASE_USER=postgres \
-  -e DATABASE_PASSWORD=postgres \
-  -e AWS_ACCESS_KEY_ID=your_key \
-  -e AWS_SECRET_ACCESS_KEY=your_secret \
-  -e AWS_REGION=us-east-1 \
-  -e LLM_MODEL=bedrock/anthropic.claude-3-haiku-20240307-v1:0 \
-  planner-agent-lambda
-
-# Invoke Lambda (in another terminal)
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "Records": [{
-      "messageId": "test-'$(date +%s)'",
-      "body": "{\"query\":\"Find 3BHK apartments in Noida\",\"user_id\":\"test-user\"}"
-    }]
-  }'
-
-# Note: Use unique messageId for each test (timestamp added above)
-```
-
-## Lambda Deployment
-
-### 1. Build and Push to ECR
-
-```bash
-cd backend
-
-# Build Lambda image
-docker build -f agents/planner/Dockerfile.lambda -t planner-agent-lambda .
-
-# Login to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
-
-# Create ECR repository (first time only)
-aws ecr create-repository --repository-name planner-agent-lambda --region us-east-1
-
-# Tag and push
-docker tag planner-agent-lambda:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest
-docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest
-```
-
-### 2. Create Lambda Function
-
-```bash
-aws lambda create-function \
-  --function-name planner-agent \
-  --package-type Image \
-  --code ImageUri=<account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest \
-  --role arn:aws:iam::<account-id>:role/lambda-execution-role \
-  --timeout 300 \
-  --memory-size 1024 \
-  --environment Variables="{DB_HOST=<rds-endpoint>,DB_NAME=real_estate_agents,LLM_MODEL=bedrock/anthropic.claude-3-haiku-20240307-v1:0}" \
-  --region us-east-1
-```
-
-### 3. Update Lambda Function
-
-```bash
-# Rebuild and push new image
-docker build -f agents/planner/Dockerfile.lambda -t planner-agent-lambda .
-docker tag planner-agent-lambda:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest
-docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest
-
-# Update Lambda to use new image
-aws lambda update-function-code \
-  --function-name planner-agent \
-  --image-uri <account-id>.dkr.ecr.us-east-1.amazonaws.com/planner-agent-lambda:latest \
-  --region us-east-1
-```
-
-### 4. Configure SQS Trigger
-
-```bash
-# Create SQS queue
-aws sqs create-queue --queue-name agent-jobs-planning --region us-east-1
-
-# Add SQS as event source
-aws lambda create-event-source-mapping \
-  --function-name planner-agent \
-  --event-source-arn arn:aws:sqs:us-east-1:<account-id>:agent-jobs-planning \
-  --batch-size 1 \
-  --region us-east-1
-```
-
-### 5. Test Lambda
-
-```bash
-# Send test message to SQS
-aws sqs send-message \
-  --queue-url https://sqs.us-east-1.amazonaws.com/<account-id>/agent-jobs-planning \
-  --message-body '{"query":"Find 3BHK apartments in Noida","user_id":"test-user"}' \
-  --region us-east-1
-
-# Check Lambda logs
-aws logs tail /aws/lambda/planner-agent --follow
-```
-
-## Structure
+## Project Structure
 
 ```
 backend/
-├── shared/          - Shared modules (database, etc.)
-└── agents/
-    └── planner/     - Planning agent
+├── api/                    # Backend API service
+│   ├── src/
+│   │   ├── main.py        # FastAPI app
+│   │   ├── lambda_handler.py
+│   │   ├── clients/       # HTTP clients
+│   │   └── services/      # Business logic
+│   ├── Dockerfile
+│   ├── Dockerfile.lambda
+│   └── README.md
+├── agents/
+│   └── planner/           # Planner agent
+│       ├── src/
+│       │   ├── main.py    # FastAPI app
+│       │   ├── lambda_handler.py
+│       │   ├── planner.py # LLM logic
+│       │   └── services/  # Business logic
+│       ├── Dockerfile
+│       ├── Dockerfile.lambda
+│       └── README.md
+└── shared/                # Shared modules
+    ├── __init__.py
+    ├── database/
+    │   ├── models.py      # SQLAlchemy models
+    │   ├── repository.py  # Data access layer
+    │   └── session.py     # DB connection
+    └── pyproject.toml
 ```
