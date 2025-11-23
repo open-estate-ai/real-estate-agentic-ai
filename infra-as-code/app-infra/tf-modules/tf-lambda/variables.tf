@@ -30,3 +30,9 @@ variable "environment_variables" {
   description = "Environment variables to pass to the Lambda function"
   default     = {}
 }
+
+variable "additional_iam_policy_arns" {
+  type        = list(string)
+  description = "Optional: Additional IAM policy ARNs to attach to Lambda role (e.g., Aurora access policy)"
+  default     = []
+}

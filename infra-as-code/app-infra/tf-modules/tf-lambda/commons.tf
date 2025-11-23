@@ -4,6 +4,7 @@ locals {
   lambda_backend_abs_dir          = "${path.module}/${var.backend_directory}"
   lambda_src_abs_dir              = "${local.lambda_backend_abs_dir}/${var.lambda_src_dir}"
   lambda_src_files                = fileset(local.lambda_src_abs_dir, "**")
+  # lambda_shared_src_files         = fileset("${local.lambda_backend_abs_dir}}/shared", "**")
   # Combined content hash over all files
   lambda_src_hash = sha1(
     join(

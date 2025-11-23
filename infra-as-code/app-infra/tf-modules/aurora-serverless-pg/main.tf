@@ -11,23 +11,29 @@ resource "random_password" "db_password" {
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
 
-resource "random_id" "suffix" {
-  byte_length = 4
+# SSM Parameter Store for database credentials (SecureString)
+resource "aws_ssm_parameter" "db_username" {
+  name        = "/${var.env}/${local.resource_name_prefix_hyphenated}/db/username"
+  description = "Database master username for Aurora cluster"
+  type        = "String"
+  value       = var.db_admin_username
+
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-db-username"
+    Environment = var.env
+  }
 }
 
+resource "aws_ssm_parameter" "db_password" {
+  name        = "/${var.env}/${local.resource_name_prefix_hyphenated}/db/password"
+  description = "Database master password for Aurora cluster"
+  type        = "SecureString"
+  value       = random_password.db_password.result
 
-# Secrets Manager secret for database credentials
-resource "aws_secretsmanager_secret" "db_credentials" {
-  name                    = "${local.resource_name_prefix_hyphenated}-${random_id.suffix.hex}"
-  recovery_window_in_days = 0 # For development - immediate deletion
-}
-
-resource "aws_secretsmanager_secret_version" "db_credentials" {
-  secret_id = aws_secretsmanager_secret.db_credentials.id
-  secret_string = jsonencode({
-    username = var.db_admin_username
-    password = random_password.db_password.result
-  })
+  tags = {
+    Name        = "${local.resource_name_prefix_hyphenated}-db-password"
+    Environment = var.env
+  }
 }
 
 # DB Subnet Group (using default VPC)
@@ -88,6 +94,9 @@ resource "aws_rds_cluster" "aurora" {
   # Enable Data API
   enable_http_endpoint = true
 
+  # Enable IAM database authentication
+  iam_database_authentication_enabled = true
+
   # Networking
   db_subnet_group_name   = aws_db_subnet_group.aurora.name
   vpc_security_group_ids = [aws_security_group.aurora.id]
@@ -116,33 +125,20 @@ resource "aws_rds_cluster_instance" "aurora" {
 
 
 
-# IAM role for Lambda to access Aurora Data API
-resource "aws_iam_role" "lambda_aurora_role" {
-  name = "${local.resource_name_prefix_hyphenated}-lambda-aurora-role"
+# ========================================
+# IAM Policy for Lambda Aurora Access
+# ========================================
+# This policy can be attached to any Lambda role that needs Aurora access
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-# IAM policy for Data API access
-resource "aws_iam_role_policy" "lambda_aurora_policy" {
-  name = "${local.resource_name_prefix_hyphenated}-lambda-aurora-policy"
-  role = aws_iam_role.lambda_aurora_role.id
+resource "aws_iam_policy" "lambda_aurora_access" {
+  name        = "${local.resource_name_prefix_hyphenated}-lambda-aurora-access"
+  description = "Policy for Lambda functions to access Aurora with IAM auth, Data API, and Secrets Manager"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "AuroraDataAPIAccess"
         Effect = "Allow"
         Action = [
           "rds-data:ExecuteStatement",
@@ -154,27 +150,38 @@ resource "aws_iam_role_policy" "lambda_aurora_policy" {
         Resource = aws_rds_cluster.aurora.arn
       },
       {
+        Sid    = "SSMParameterStoreAccess"
         Effect = "Allow"
         Action = [
-          "secretsmanager:GetSecretValue"
+          "ssm:GetParameter",
+          "ssm:GetParameters"
         ]
-        Resource = aws_secretsmanager_secret.db_credentials.arn
+        Resource = [
+          aws_ssm_parameter.db_username.arn,
+          aws_ssm_parameter.db_password.arn
+        ]
       },
       {
+        Sid    = "KMSDecryptForSSM"
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "kms:Decrypt"
         ]
-        Resource = "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:*"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.region}.amazonaws.com"
+          }
+        }
+      },
+      {
+        Sid    = "RDSIAMAuthentication"
+        Effect = "Allow"
+        Action = [
+          "rds-db:connect"
+        ]
+        Resource = "arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_rds_cluster.aurora.cluster_resource_id}/${var.db_admin_username}"
       }
     ]
   })
-}
-
-# Attach basic Lambda execution role
-resource "aws_iam_role_policy_attachment" "lambda_basic" {
-  role       = aws_iam_role.lambda_aurora_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }

@@ -1,4 +1,10 @@
-"""FastAPI application for local development."""
+"""
+FastAPI application for Backend API service.
+
+Environment-based configuration:
+- ENV=local: Uses local Docker PostgreSQL, local Planner Agent
+- ENV=dev/stage/production: Uses AWS RDS, deployed Planner Agent
+"""
 
 import logging
 import os
@@ -11,7 +17,14 @@ from database import get_db_session, init_db
 from .clients import PlannerClient
 from .services import ApiService
 
-# Configure logging
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Environment detection (used by database connection)
+ENV = os.getenv("ENV", "local")
+
+# Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -19,8 +32,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ENV = os.getenv("ENV", "local")
+# Agent endpoint
 PLANNER_AGENT_URL = os.getenv("PLANNER_AGENT_URL", "http://localhost:8081")
+
+logger.info(f"Starting Backend API in {ENV} environment")
+logger.info(f"Database connection will use ENV={ENV} settings")
 
 # Create FastAPI app with /api prefix
 app = FastAPI(

@@ -38,6 +38,13 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Attach additional IAM policies (e.g., Aurora access)
+resource "aws_iam_role_policy_attachment" "additional_policies" {
+  count      = length(var.additional_iam_policy_arns)
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = var.additional_iam_policy_arns[count.index]
+}
+
 ########################
 # CloudWatch log group
 ########################
@@ -70,6 +77,7 @@ resource "aws_lambda_function" "docker_image_lambda" {
 
   depends_on = [
     null_resource.build_and_push_image,
-    aws_iam_role_policy_attachment.lambda_basic_logs
+    aws_iam_role_policy_attachment.lambda_basic_logs,
+    aws_iam_role_policy_attachment.additional_policies
   ]
 }

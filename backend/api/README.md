@@ -126,6 +126,7 @@ export LAMBDA_FUNCTION_NAME="${ENVIRONMENT}-open-estate-ai-backend-api"
 export LAMBDA_FUNCTION_ARN="arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${LAMBDA_FUNCTION_NAME}"
 ```
 
+
 ### Quick Health Check
 
 ```bash
