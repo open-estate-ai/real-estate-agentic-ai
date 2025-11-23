@@ -18,7 +18,7 @@ tilt up
 ```
 
 This starts:
-- Backend API on port 9000
+- Backend API on port 8080
 - Planner Agent on port 8081
 - PostgreSQL database
 

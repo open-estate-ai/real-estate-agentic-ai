@@ -8,6 +8,7 @@ RUN microdnf install -y postgresql-devel gcc tar gzip && \
 # Copy shared module to expected location for uv path dependency resolution
 COPY shared ${LAMBDA_TASK_ROOT}/../../shared/
 
+
 # Install shared module first
 RUN cd ${LAMBDA_TASK_ROOT}/../../shared && pip install --no-cache-dir .
 
