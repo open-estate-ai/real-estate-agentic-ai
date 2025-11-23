@@ -16,4 +16,9 @@ module "tf_lambda_backend_api" {
   region         = var.resource_region
   lambda_name    = "${var.project_name}-backend-api"
   lambda_src_dir = "api"
+
+  environment_variables = {
+    ENV       = var.env
+    LOG_LEVEL = var.log_level
+  }
 }

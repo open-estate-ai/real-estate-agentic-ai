@@ -61,6 +61,13 @@ resource "aws_lambda_function" "docker_image_lambda" {
   memory_size   = var.lambda_memory_size
   architectures = ["x86_64"] # change to ["arm64"] if your image is arm
 
+  dynamic "environment" {
+    for_each = length(var.environment_variables) > 0 ? [1] : []
+    content {
+      variables = var.environment_variables
+    }
+  }
+
   depends_on = [
     null_resource.build_and_push_image,
     aws_iam_role_policy_attachment.lambda_basic_logs
