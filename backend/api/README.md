@@ -55,11 +55,11 @@ docker build -f api/Dockerfile.lambda -t backend-api-lambda .
 Ensure PostgreSQL 17.6 is running locally before starting the Lambda container.
 
 ```bash
-# Stop any existing container on port 9080
-docker ps | grep 9080 && docker stop $(docker ps -q --filter "publish=9080")
+# Stop any existing container on port 9001
+docker ps | grep 9001 && docker stop $(docker ps -q --filter "publish=9001")
 
 # Run Lambda container
-docker run --rm -p 9080:8080 \
+docker run --rm -p 9001:8080 \
   -e ENV=local \
   -e PLANNER_AGENT_URL=http://host.docker.internal:8081 \
   -e LOG_LEVEL=DEBUG \
@@ -75,7 +75,7 @@ docker run --rm -p 9080:8080 \
 
 **Simulate API Gateway Event:**
 ```bash
-curl -X POST "http://localhost:9080/2015-03-31/functions/function/invocations" \
+curl -X POST "http://localhost:9001/2015-03-31/functions/function/invocations" \
   -H "Content-Type: application/json" \
   -d '{
     "version": "2.0",
