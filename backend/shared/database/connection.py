@@ -86,12 +86,21 @@ def _get_aws_db_credentials() -> tuple[str, str]:
     Raises:
         Exception: If credential retrieval fails
     """
-    env = os.getenv("ENV", "dev")
-    ssm_prefix = f"/{env}/{env}-open-estate-ai"
+    # Get SSM parameter names from environment variables
+    username_param = os.getenv("DB_USERNAME_SSM_PARAM")
+    password_param = os.getenv("DB_PASSWORD_SSM_PARAM")
+
+    if not username_param or not password_param:
+        raise ValueError(
+            "DB_USERNAME_SSM_PARAM and DB_PASSWORD_SSM_PARAM environment variables must be set"
+        )
 
     print(f"[DB] Fetching credentials from SSM Parameter Store...")
-    username = _get_ssm_parameter(f"{ssm_prefix}/db/username", decrypt=False)
-    password = _get_ssm_parameter(f"{ssm_prefix}/db/password", decrypt=True)
+    print(f"[DB] Username param: {username_param}")
+    print(f"[DB] Password param: {password_param}")
+
+    username = _get_ssm_parameter(username_param, decrypt=False)
+    password = _get_ssm_parameter(password_param, decrypt=True)
 
     print(f"[DB] Retrieved credentials for user: {username}")
     return username, password

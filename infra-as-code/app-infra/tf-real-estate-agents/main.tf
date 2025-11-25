@@ -1,4 +1,4 @@
-## TEMPORARILY COMMENTED OUT RESOURCES ##
+
 module "aurora_serverless_pg" {
   source            = "../tf-modules/aurora-serverless-pg"
   env               = var.env
@@ -34,10 +34,11 @@ module "tf_lambda_backend_api" {
       DATABASE_HOST   = module.aurora_serverless_pg.aurora_cluster_endpoint
       DATABASE_PORT   = module.aurora_serverless_pg.database_port
       DATABASE_NAME   = module.aurora_serverless_pg.database_name
-      DATABASE_USER   = module.aurora_serverless_pg.master_username
       DB_POOL_SIZE    = "2"
       DB_POOL_RECYCLE = "3600"
-      # Lambda fetches password from SSM Parameter Store
+      # SSM Parameter Store paths for credentials
+      DB_USERNAME_SSM_PARAM = module.aurora_serverless_pg.db_username_parameter_name
+      DB_PASSWORD_SSM_PARAM = module.aurora_serverless_pg.db_password_parameter_name
     },
     # Only add planner agent URL if configured
     var.planner_agent_url != "" ? {
