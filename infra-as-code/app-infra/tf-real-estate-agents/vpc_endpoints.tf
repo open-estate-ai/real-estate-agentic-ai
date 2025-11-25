@@ -7,7 +7,7 @@
 resource "aws_security_group" "vpc_endpoints" {
   name        = "${local.resource_name_prefix_hyphenated}-vpc-endpoints-sg"
   description = "Security group for VPC endpoints"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = data.aws_vpc.rds_vpc.id
 
   # Allow HTTPS from Lambda security group
   ingress {
@@ -23,7 +23,7 @@ resource "aws_security_group" "vpc_endpoints" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.default.cidr_block]
+    cidr_blocks = [data.aws_vpc.rds_vpc.cidr_block]
     description = "Allow HTTPS from VPC"
   }
 
@@ -38,20 +38,20 @@ resource "aws_security_group" "vpc_endpoints" {
 
 # VPC Endpoint for SSM (required for Parameter Store)
 resource "aws_vpc_endpoint" "ssm" {
-  vpc_id              = data.aws_vpc.default.id
+  vpc_id              = data.aws_vpc.rds_vpc.id
   service_name        = "com.amazonaws.${var.resource_region}.ssm"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
+  subnet_ids          = module.aurora_serverless_pg.subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
 
 # VPC Endpoint for SSM Messages (required for Session Manager if needed)
 resource "aws_vpc_endpoint" "ssmmessages" {
-  vpc_id              = data.aws_vpc.default.id
+  vpc_id              = data.aws_vpc.rds_vpc.id
   service_name        = "com.amazonaws.${var.resource_region}.ssmmessages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
+  subnet_ids          = module.aurora_serverless_pg.subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 
@@ -59,10 +59,10 @@ resource "aws_vpc_endpoint" "ssmmessages" {
 
 # VPC Endpoint for KMS (required for decrypting SecureString parameters)
 resource "aws_vpc_endpoint" "kms" {
-  vpc_id              = data.aws_vpc.default.id
+  vpc_id              = data.aws_vpc.rds_vpc.id
   service_name        = "com.amazonaws.${var.resource_region}.kms"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = data.aws_subnets.default.ids
+  subnet_ids          = module.aurora_serverless_pg.subnet_ids
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
