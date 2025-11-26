@@ -75,6 +75,66 @@ curl -X POST "http://localhost:9081/2015-03-31/functions/function/invocations" \
   }'
 ```
 
+
+## Test AWS Lambda (Post-Deployment)
+
+### Prerequisites
+
+- AWS CLI configured
+- Lambda function deployed
+- `jq` installed for JSON parsing
+
+### Set Environment Variables
+
+```bash
+export AWS_REGION="us-east-1"
+export AWS_ACCOUNT_ID="756375699536"
+export ENVIRONMENT="dev"
+export LAMBDA_FUNCTION_NAME="${ENVIRONMENT}-open-estate-ai-planner-agent"
+export LAMBDA_FUNCTION_ARN="arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${LAMBDA_FUNCTION_NAME}"
+```
+
+### Analyze Query
+
+```bash
+aws lambda invoke \
+  --function-name "$LAMBDA_FUNCTION_ARN" \
+  --payload '{
+    "Records": [
+      {
+        "messageId": "test-msg-001",
+        "receiptHandle": "test-receipt-handle",
+        "body": "{\"query\":\"Find 3BHK apartments in Noida under 1 crore\",\"user_id\":\"user-123\"}",
+        "attributes": {
+          "ApproximateReceiveCount": "1",
+          "SentTimestamp": "1700000000000",
+          "SenderId": "AIDAIT2UOQQY3AUEKVGXU",
+          "ApproximateFirstReceiveTimestamp": "1700000000000"
+        },
+        "messageAttributes": {},
+        "md5OfBody": "test-md5",
+        "eventSource": "aws:sqs",
+        "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:test-queue",
+        "awsRegion": "us-east-1"
+      }
+    ]
+  }' \
+  --cli-binary-format raw-in-base64-out \
+  /tmp/planner-response.json && cat /tmp/planner-response.json | jq '.'
+```
+
+
+### View Lambda Logs
+
+```bash
+# Tail logs in real-time
+aws logs tail /aws/lambda/${LAMBDA_FUNCTION_NAME} --follow
+
+# Get recent logs (last 10 minutes)
+aws logs tail /aws/lambda/${LAMBDA_FUNCTION_NAME} --since 10m --format short
+
+
+
 ## Environment Variables
 
 | Variable | Description | Default |

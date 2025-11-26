@@ -4,8 +4,11 @@ module "aurora_serverless_pg" {
   env               = var.env
   region            = var.resource_region
   project_name      = var.project_name
+  vpc_id         = data.aws_vpc.default.id
+  vpc_cidr_block = data.aws_vpc.default.cidr_block
+  vpc_subnet_ids = data.aws_subnets.default.ids
   db_admin_username = "adminuser"
-  db_name           = "real_estate_agents"
+  db_name           = "real_estate_agents"  
 }
 
 
@@ -21,7 +24,7 @@ module "tf_lambda_backend_api" {
   additional_iam_policy_arns = [module.aurora_serverless_pg.aurora_access_policy_arn]
 
   # VPC configuration to access Aurora in private subnets
-  vpc_subnet_ids         = module.aurora_serverless_pg.subnet_ids
+  vpc_subnet_ids         = data.aws_subnets.default.ids
   vpc_security_group_ids = [module.aurora_serverless_pg.lambda_security_group_id]
 
   environment_variables = merge(
@@ -58,7 +61,7 @@ module "tf_lambda_planner_agent" {
   additional_iam_policy_arns = [module.aurora_serverless_pg.aurora_access_policy_arn]
 
   # VPC configuration to access Aurora in private subnets
-  vpc_subnet_ids         = module.aurora_serverless_pg.subnet_ids
+  vpc_subnet_ids         = data.aws_subnets.default.ids
   vpc_security_group_ids = [module.aurora_serverless_pg.lambda_security_group_id]
 
   environment_variables = merge(

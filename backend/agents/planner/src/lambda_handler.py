@@ -8,6 +8,7 @@ import asyncio
 import json
 import uuid
 from typing import Any
+from sqlalchemy import text
 
 from database import JobStatus, get_db_session, init_db, JobRepository
 from .services import PlannerService
@@ -35,6 +36,20 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         Response with processing status
     """
     print(f"📥 Received event: {json.dumps(event)}")
+
+    try:
+        with get_db_session() as session:
+            session.execute(text("SELECT 1"))
+        print("✅ Database connection healthy")
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({
+                "error": "Database connection failed",
+                "details": str(e),
+            }),
+        }
 
     # Initialize database on cold start
     # try:

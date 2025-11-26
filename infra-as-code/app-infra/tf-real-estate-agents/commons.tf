@@ -3,14 +3,14 @@ locals {
 }
 
 
-# DB Subnet Group (using RDS Postgres Applicable VPC)
-data "aws_vpc" "rds_vpc" {
-  id = module.aurora_serverless_pg.vpc_id
+# DB Subnet Group (using default VPC)
+data "aws_vpc" "default" {
+  default = true
 }
 
-# data "aws_subnets" "default" {
-#   filter {
-#     name   = "vpc-id"
-#     values = [data.aws_vpc.default.id]
-#   }
-# }
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}

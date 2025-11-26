@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from database import get_db_session, init_db
+from sqlalchemy import text
 
 from .services import PlannerService
 
@@ -66,7 +67,7 @@ async def health():
     # Test database connection
     try:
         with get_db_session() as session:
-            session.execute("SELECT 1")
+            session.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"

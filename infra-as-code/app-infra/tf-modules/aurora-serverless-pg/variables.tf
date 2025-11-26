@@ -1,3 +1,14 @@
+variable "vpc_id" {
+  type = string
+}
+variable "vpc_cidr_block" {
+  type = string
+}
+
+variable "vpc_subnet_ids" {
+  type = list(string)
+}
+
 variable "db_admin_username" {
   type = string
 }
