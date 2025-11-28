@@ -15,10 +15,10 @@ Run SQL migrations against Aurora Serverless using RDS Data API.
 python3 -m venv .venv
 
 # Activate virtual environment
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install dependencies
-pip install boto3
+pip install -r requirements.txt
 ```
 
 ## Configuration

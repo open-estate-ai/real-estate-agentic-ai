@@ -18,38 +18,32 @@ class PlannerService:
     @staticmethod
     async def create_plan_for_query(
         job_id: str,
-        query: str,
+        user_query: str,
         user_id: str | None = None,
-        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Create execution plan for a user query.
 
         Args:
             job_id: Unique job identifier
-            query: User's natural language query
+            user_query: User's natural language query
             user_id: Optional user identifier
-            context: Optional additional context
 
         Returns:
-            Plan with child job IDs
+            Plan with job details
         """
-        context = context or {}
-
-        # Create parent planning job
+        # Create planning job with status RUNNING immediately
         with get_db_session() as session:
             JobRepository.create_job(
                 session=session,
                 job_id=job_id,
                 job_type=JobType.PLANNING,
                 request_payload={
-                    "query": query,
-                    "user_id": user_id,
-                    "context": context,
+                    "user_query": user_query,
                 },
             )
 
-            # Update to in_progress
+            # Set to running status immediately
             JobRepository.update_job(
                 session=session,
                 job_id=job_id,
@@ -58,24 +52,9 @@ class PlannerService:
 
         try:
             # Generate plan using LLM
-            plan = await create_plan(query, context)
+            plan = await create_plan(user_query, {})
 
-            # Create child jobs for each step
-            child_job_ids = []
-            with get_db_session() as session:
-                for step in plan["steps"]:
-                    child_job_id = f"{job_id}-{step['agent']}-{uuid.uuid4().hex[:8]}"
-
-                    JobRepository.create_job(
-                        session=session,
-                        job_id=child_job_id,
-                        job_type=JobType[step["agent"].upper()],
-                        request_payload=step.get("payload", {}),
-                        parent_job_id=job_id,
-                    )
-                    child_job_ids.append(child_job_id)
-
-            # Update parent job with plan
+            # Update job with completed plan (no child jobs)
             with get_db_session() as session:
                 JobRepository.update_job(
                     session=session,
@@ -83,14 +62,14 @@ class PlannerService:
                     status=JobStatus.COMPLETED,
                     response_payload={
                         "plan": plan,
-                        "child_jobs": child_job_ids,
+                        "user_id": user_id,
                     },
                 )
 
             return {
                 "job_id": job_id,
                 "plan": plan,
-                "child_jobs": child_job_ids,
+                "user_id": user_id,
             }
 
         except Exception as e:

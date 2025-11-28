@@ -19,18 +19,16 @@ class PlannerClient:
     async def create_plan(
         self,
         job_id: str,
-        query: str,
+        user_query: str,
         user_id: str | None = None,
-        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Send query to planner agent to create execution plan.
 
         Args:
             job_id: Unique job identifier
-            query: User's query
+            user_query: User's query
             user_id: Optional user identifier
-            context: Optional context dictionary
 
         Returns:
             Response from planner agent
@@ -40,20 +38,34 @@ class PlannerClient:
         """
         logger.info(
             f"Sending request to planner agent: {self.base_url}/user-query")
-        logger.debug(f"Job ID: {job_id}, Query: {query}, User: {user_id}")
+        logger.debug(f"Job ID: {job_id}, Query: {user_query}, User: {user_id}")
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{self.base_url}/user-query",
                 json={
                     "job_id": job_id,
-                    "query": query,
                     "user_id": user_id,
-                    "context": context or {},
+                    "request_payload": {
+                        "user_query": user_query,
+                    },
                 },
                 timeout=self.timeout,
             )
-            response.raise_for_status()
+
+            if response.status_code != 200:
+                error_detail = "Unknown error"
+                try:
+                    error_response = response.json()
+                    error_detail = error_response.get(
+                        'detail', str(error_response))
+                except:
+                    error_detail = response.text
+
+                logger.error(
+                    f"Planner agent error {response.status_code}: {error_detail}")
+                response.raise_for_status()
+
             result = response.json()
 
             logger.info(

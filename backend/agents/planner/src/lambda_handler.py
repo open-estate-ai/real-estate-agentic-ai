@@ -37,30 +37,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """
     print(f"📥 Received event: {json.dumps(event)}")
 
-    try:
-        with get_db_session() as session:
-            session.execute(text("SELECT 1"))
-        print("✅ Database connection healthy")
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps({
-                "error": "Database connection failed",
-                "details": str(e),
-            }),
-        }
-
-    # Initialize database on cold start
-    # try:
-    #     init_db()
-    # except Exception as e:
-    #     print(f"⚠️  Database already initialized or error: {e}")
-
     results = []
 
     # Process each SQS record
     for record in event.get('Records', []):
+        job_id = None  # Initialize job_id for error handling
         try:
             # Extract message details
             message_id = record.get('messageId', str(uuid.uuid4()))
@@ -70,43 +51,48 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             print(f"📝 Body: {json.dumps(body)}")
 
             # Extract request data
-            query = body.get('query')
             user_id = body.get('user_id')
-            request_context = body.get('context', {})
+            request_payload = body.get('request_payload', {})
+            user_query = request_payload.get('user_query')
 
-            if not query:
-                raise ValueError("Missing 'query' in message body")
+            if not user_query:
+                raise ValueError("Missing 'user_query' in request_payload")
 
-            # Use message ID as job ID
-            job_id = message_id
+            # Generate UUID for job ID (database expects UUID format)
+            job_id = str(uuid.uuid4())
 
             # Process the planning request
             result = asyncio.run(process_planning_request(
                 job_id=job_id,
-                query=query,
+                user_query=user_query,
                 user_id=user_id,
-                context=request_context,
             ))
 
             results.append({
                 "messageId": message_id,
+                "job_id": job_id,  # Include generated job_id in response
                 "status": "success",
                 "result": result,
             })
 
-            print(f"✅ Successfully processed message {message_id}")
+            print(
+                f"✅ Successfully processed message {message_id} with job_id {job_id}")
 
         except Exception as e:
             error_msg = str(e)
             print(f"❌ Error processing message: {error_msg}")
 
-            # Try to update job as failed
+            # Try to update job as failed if we have a valid job_id
             try:
                 message_id = record.get('messageId', str(uuid.uuid4()))
+                # Use job_id if we have one, otherwise generate one
+                if job_id is None:
+                    job_id = str(uuid.uuid4())
+
                 with get_db_session() as session:
                     JobRepository.update_job(
                         session=session,
-                        job_id=message_id,
+                        job_id=job_id,
                         status=JobStatus.FAILED,
                         error_message=error_msg,
                     )
@@ -136,9 +122,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
 async def process_planning_request(
     job_id: str,
-    query: str,
+    user_query: str,
     user_id: str | None,
-    context: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Process a planning request.
@@ -147,18 +132,16 @@ async def process_planning_request(
 
     Args:
         job_id: Unique job identifier
-        query: User's natural language query
+        user_query: User's natural language query
         user_id: User identifier (optional)
-        context: Additional context
 
     Returns:
-        Plan with child job IDs
+        Plan with job details
     """
     return await PlannerService.create_plan_for_query(
         job_id=job_id,
-        query=query,
+        user_query=user_query,
         user_id=user_id,
-        context=context,
     )
 
 

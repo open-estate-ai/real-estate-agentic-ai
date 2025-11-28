@@ -10,6 +10,69 @@ The entry point for the real estate AI system. Receives user queries, invokes th
 - Health check endpoint with database connectivity validation
 - Retrieves job details and output from the database
 
+## Data Payload Structure
+
+### **Request Format**
+
+All requests to `/api/analyze` should use this simplified structure:
+
+```json
+{
+  "user_id": "user-123",
+  "request_payload": {
+    "user_query": "Find 3BHK apartments in Noida under 1 crore"
+  }
+}
+```
+
+**Fields:**
+- `user_id` *(string, optional)*: User identifier for tracking and personalization
+- `request_payload` *(object, required)*: Container for query data
+  - `user_query` *(string, required)*: User's natural language query
+
+### **Response Format**
+
+Successful analysis request returns:
+
+```json
+{
+  "job_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message": "Query submitted for analysis"
+}
+```
+
+**Fields:**
+- `job_id` *(string)*: UUID for tracking job status and results
+- `message` *(string)*: Confirmation message
+
+### **Sample Queries**
+
+```json
+// Real estate search
+{
+  "user_id": "user-456",
+  "request_payload": {
+    "user_query": "Show me 2BHK apartments in Gurgaon with parking under 80 lakhs"
+  }
+}
+
+// Property valuation
+{
+  "user_id": "user-789",
+  "request_payload": {
+    "user_query": "What's the market value of a 3BHK apartment in Sector 62 Noida"
+  }
+}
+
+// Investment analysis
+{
+  "user_id": "user-101",
+  "request_payload": {
+    "user_query": "Compare rental yields between Noida and Gurgaon for 2BHK flats"
+  }
+}
+```
+
 ## Local Development
 
 ### Run with Tilt
@@ -26,8 +89,10 @@ tilt up
 curl -X POST http://localhost:8080/api/analyze \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "Find 3BHK apartments in Noida under 1 crore",
-    "user_id": "user-123"
+    "user_id": "user-123",
+    "request_payload": {
+      "user_query": "Find 3BHK apartments in Noida under 1 crore"
+    }
   }'
 ```
 
@@ -103,7 +168,7 @@ curl -X POST "http://localhost:9001/2015-03-31/functions/function/invocations" \
       "time": "09/Nov/2023:12:34:56 +0000",
       "timeEpoch": 1699534496000
     },
-    "body": "{\"query\":\"Find 3BHK apartments in Noida under 1 crore\",\"user_id\":\"user-123\"}",
+    "body": "{\"user_id\":\"user-123\",\"request_payload\":{\"user_query\":\"Find 3BHK apartments in Noida under 1 crore\"}}",
     "isBase64Encoded": false
   }'
 ```
@@ -152,8 +217,7 @@ aws lambda invoke \
 ```bash
 aws lambda invoke \
   --function-name "$LAMBDA_FUNCTION_ARN" \
-  --payload "{\"version\":\"2.0\",\"routeKey\":\"POST /api/analyze\",\"rawPath\":\"/api/analyze\",\"headers\":{\"content-type\":\"application/json\"},\"requestContext\":{\"accountId\":\"${AWS_ACCOUNT_ID}\",\"http\":{\"method\":\"POST\",\"path\":\"/api/analyze\",\"sourceIp\":\"127.0.0.1\"}},\"body\":\"{\\\"query\\\":\\\"Find 3BHK apartments in Noida under 1 crore\\\",\\\"user_id\\\":\\\"user-123\\\"}\",\"isBase64Encoded\":false}" \
-  --cli-binary-format raw-in-base64-out \
+  --payload '{"version":"2.0","routeKey":"POST /api/analyze","rawPath":"/api/analyze","headers":{"content-type":"application/json"},"requestContext":{"accountId":"'${AWS_ACCOUNT_ID}'","http":{"method":"POST","path":"/api/analyze","sourceIp":"127.0.0.1"}},"body":"{\"user_id\":\"user-123\",\"request_payload\":{\"user_query\":\"Find 3BHK apartments in Noida under 1 crore\"}}","isBase64Encoded":false}' \
   /tmp/lambda-response.json && cat /tmp/lambda-response.json | jq '.'
 ```
 

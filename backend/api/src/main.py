@@ -9,9 +9,10 @@ Environment-based configuration:
 import logging
 import os
 import uuid
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from database import get_db_session, init_db
 
 from .clients import PlannerClient
@@ -71,16 +72,23 @@ async def health():
 
 class AnalyzeRequest(BaseModel):
     """Request model for analyze endpoint."""
-    query: str
     user_id: str | None = None
+    request_payload: dict[str, Any]
+
+    @validator('request_payload')
+    def validate_request_payload(cls, v):
+        if 'user_query' not in v:
+            raise ValueError('request_payload must contain user_query')
+        return v
 
 
 @app.post("/api/analyze")
 async def analyze(request: AnalyzeRequest):
     """Analyze user query and create execution plan."""
     try:
-        job_id = f"job-{uuid.uuid4().hex[:8]}"
-        logger.info(f"Analyzing query for job_id={job_id}")
+        job_id = str(uuid.uuid4())  # Generate proper UUID
+        user_query = request.request_payload.get('user_query')
+        logger.info(f"Analyzing query for job_id={job_id}: {user_query}")
 
         if ENV == "local":
             # Local: Make HTTP call to planner agent
@@ -88,7 +96,7 @@ async def analyze(request: AnalyzeRequest):
             planner_client = PlannerClient()
             result = await planner_client.create_plan(
                 job_id=job_id,
-                query=request.query,
+                user_query=user_query,
                 user_id=request.user_id,
             )
 
@@ -117,15 +125,3 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     return job
-
-
-@app.get("/api/jobs/{job_id}/children")
-async def get_child_jobs(job_id: str):
-    """Get all child jobs for a planning job."""
-    children = ApiService.get_job_children(job_id)
-
-    return {
-        "parent_job_id": job_id,
-        "child_count": len(children),
-        "children": children,
-    }

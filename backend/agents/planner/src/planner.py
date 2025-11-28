@@ -1,101 +1,42 @@
 """
-Planner logic - creates execution plans using LLM.
+Planner logic - creates execution plans.
+
+TODO: Implement LLM-based planning logic here.
+For now, returns a simple mock plan structure to establish clean app architecture.
 """
 
-import os
 from typing import Any
-
-from litellm import acompletion
 
 
 async def create_plan(query: str, context: dict[str, Any]) -> dict[str, Any]:
     """
-    Create an execution plan for a user query using LLM.
+    Create an execution plan for a user query.
+
+    TODO: Implement proper LLM-based planning here.
+    Currently returns a simple mock structure for clean architecture testing.
 
     Args:
         query: User's natural language query
-        context: Additional context (user preferences, history, etc.)
+        context: Additional context (currently unused)
 
     Returns:
-        Plan dictionary with steps and metadata
+        Plan dictionary with basic structure
     """
 
-    llm_model = os.getenv("LLM_MODEL", "gpt-4")
-
-    system_prompt = """You are a planning agent for a real estate AI system.
-Your job is to analyze user queries and create a step-by-step execution plan.
-
-Available agents:
-- SEARCH: Find property listings based on criteria
-- VALUATION: Estimate property values and comparables
-- LEGAL_CHECK: Verify legal compliance and registry
-- VERIFICATION: Check data integrity and fraud signals
-- SUMMARIZATION: Create final report for user
-
-Analyze the query and create a plan with these steps.
-Return a JSON object with:
-{
-  "steps": [
-    {
-      "agent": "SEARCH",
-      "action": "find_listings",
-      "payload": {"city": "Noida", "bedrooms": 3, "max_price": 10000000}
-    },
-    ...
-  ],
-  "reasoning": "Brief explanation of the plan",
-  "estimated_duration_seconds": 60
-}
-"""
-
-    user_prompt = f"""Create an execution plan for this query:
-
-Query: {query}
-
-Context: {context}
-
-Return only valid JSON, no markdown."""
-
-    try:
-        response = await acompletion(
-            model=llm_model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.3,
-        )
-
-        # Extract JSON from response
-        content = response.choices[0].message.content
-
-        # Remove markdown code blocks if present
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0]
-
-        import json
-        plan = json.loads(content.strip())
-
-        return plan
-
-    except Exception as e:
-        # Fallback to simple search plan
-        return {
-            "steps": [
-                {
-                    "agent": "SEARCH",
-                    "action": "find_listings",
-                    "payload": {"query": query}
-                },
-                {
-                    "agent": "SUMMARIZATION",
-                    "action": "create_report",
-                    "payload": {"format": "text"}
-                }
-            ],
-            "reasoning": f"Fallback plan due to error: {str(e)}",
-            "estimated_duration_seconds": 30,
-            "fallback": True,
-        }
+    # TODO: Replace with actual LLM logic
+    # For now, return a simple mock plan to test the architecture
+    return {
+        "query_analyzed": query,
+        "plan_type": "mock_plan",
+        "reasoning": "TODO: Add LLM-based reasoning here",
+        "steps": [
+            {
+                "step_number": 1,
+                "description": "Process user query",
+                "status": "planned"
+            }
+        ],
+        "estimated_duration_seconds": 5,
+        "created_by": "planner_agent_v1",
+        "is_mock": True  # Remove when real LLM is implemented
+    }

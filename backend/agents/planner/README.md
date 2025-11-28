@@ -25,8 +25,10 @@ curl -X POST http://localhost:8081/user-query \
   -H "Content-Type: application/json" \
   -d '{
     "job_id": "test-123",
-    "query": "Find 3BHK apartments in Noida under 1 crore",
-    "user_id": "user-123"
+    "user_id": "user-123",
+    "request_payload": {
+      "user_query": "Find 3BHK apartments in Noida under 1 crore"
+    }
   }'
 ```
 
@@ -70,7 +72,7 @@ curl -X POST "http://localhost:9081/2015-03-31/functions/function/invocations" \
   -d '{
     "Records": [{
       "messageId": "test-msg-123",
-      "body": "{\"query\":\"Find 3BHK apartments in Noida\",\"user_id\":\"user-123\"}"
+      "body": "{\"user_id\":\"user-123\",\"request_payload\":{\"user_query\":\"Find 3BHK apartments in Noida\"}}"
     }]
   }'
 ```
@@ -92,6 +94,7 @@ export AWS_ACCOUNT_ID="756375699536"
 export ENVIRONMENT="dev"
 export LAMBDA_FUNCTION_NAME="${ENVIRONMENT}-open-estate-ai-planner-agent"
 export LAMBDA_FUNCTION_ARN="arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${LAMBDA_FUNCTION_NAME}"
+export TEST_MESSAGE_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 ```
 
 ### Analyze Query
@@ -102,9 +105,9 @@ aws lambda invoke \
   --payload '{
     "Records": [
       {
-        "messageId": "test-msg-001",
+        "messageId": "1234",
         "receiptHandle": "test-receipt-handle",
-        "body": "{\"query\":\"Find 3BHK apartments in Noida under 1 crore\",\"user_id\":\"user-123\"}",
+        "body": "{\"user_id\":\"user-123\",\"request_payload\":{\"user_query\":\"Find 3BHK apartments in Noida under 1 crore\"}}",
         "attributes": {
           "ApproximateReceiveCount": "1",
           "SentTimestamp": "1700000000000",

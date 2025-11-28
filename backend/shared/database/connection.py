@@ -140,9 +140,6 @@ def _build_database_url() -> str:
     return url
 
 
-# Build database URL at module load time
-DATABASE_URL = _build_database_url()
-
 # =============================================================================
 # CONNECTION ENGINE
 # =============================================================================
@@ -150,6 +147,18 @@ DATABASE_URL = _build_database_url()
 # Global engine instance
 _engine: Engine | None = None
 _SessionLocal: sessionmaker | None = None
+_database_url: str | None = None
+
+
+def _get_database_url() -> str:
+    """
+    Get or build database URL lazily (on first access).
+    This prevents cold start timeouts by deferring SSM calls until needed.
+    """
+    global _database_url
+    if _database_url is None:
+        _database_url = _build_database_url()
+    return _database_url
 
 
 def get_engine() -> Engine:
@@ -172,10 +181,13 @@ def get_engine() -> Engine:
     """
     global _engine
     if _engine is None:
+        # Get database URL lazily (only when engine is first created)
+        database_url = _get_database_url()
+
         if IS_LOCAL:
             # LOCAL: Existing configuration
             _engine = create_engine(
-                DATABASE_URL,
+                database_url,
                 pool_size=POOL_SIZE,
                 max_overflow=MAX_OVERFLOW,
                 pool_timeout=POOL_TIMEOUT,
@@ -200,7 +212,7 @@ def get_engine() -> Engine:
                 "connect_args": {"sslmode": "require"},
             }
 
-            _engine = create_engine(DATABASE_URL, **engine_config)
+            _engine = create_engine(database_url, **engine_config)
             print(f"[DB] Engine created: pool_size={lambda_pool_size}, "
                   f"pool_recycle={lambda_pool_recycle}s, password_auth=true")
 

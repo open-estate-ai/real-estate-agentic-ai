@@ -22,7 +22,7 @@ CREATE TYPE job_type AS ENUM (
 
 -- Main table
 CREATE TABLE IF NOT EXISTS jobs (
-    job_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id VARCHAR(36) PRIMARY KEY,  -- Store UUID as string to match app usage
     type job_type NOT NULL,
     status job_status NOT NULL DEFAULT 'pending',
     request_payload JSONB NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), -- app must update this on UPDATE
     completed_at TIMESTAMPTZ,
-    parent_job_id UUID,
+    parent_job_id VARCHAR(36),  -- Store UUID as string to match app usage
     CONSTRAINT fk_parent_job
         FOREIGN KEY (parent_job_id)
         REFERENCES jobs(job_id)

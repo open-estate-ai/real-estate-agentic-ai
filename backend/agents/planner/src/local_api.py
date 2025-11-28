@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 from database import get_db_session, init_db
 from sqlalchemy import text
@@ -38,9 +38,22 @@ app = FastAPI(
 class PlanRequest(BaseModel):
     """Request model for planning."""
     job_id: str
-    query: str
     user_id: str | None = None
-    context: dict | None = None
+    request_payload: dict
+
+    @validator('request_payload')
+    def validate_request_payload(cls, v):
+        if not isinstance(v, dict):
+            raise ValueError('request_payload must be a dictionary')
+        if 'user_query' not in v:
+            raise ValueError('request_payload must contain user_query')
+        if not v.get('user_query', '').strip():
+            raise ValueError('user_query cannot be empty')
+        return v
+
+    def get_user_query(self) -> str:
+        """Extract user query from request payload."""
+        return self.request_payload.get('user_query', '').strip()
 
 
 class PlanResponse(BaseModel):
@@ -84,12 +97,20 @@ async def health():
 async def plan_query(request: PlanRequest):
     """Create an execution plan for a user query."""
     try:
+        user_query = request.get_user_query()
+
+        print(f"🔍 Processing planning request:")
+        print(f"  - Job ID: {request.job_id}")
+        print(f"  - User ID: {request.user_id}")
+        print(f"  - Query: {user_query}")
+
         result = await PlannerService.create_plan_for_query(
             job_id=request.job_id,
-            query=request.query,
+            user_query=user_query,
             user_id=request.user_id,
-            context=request.context or {},
         )
+
+        print(f"✅ Planning completed for job {request.job_id}")
 
         return PlanResponse(
             job_id=result["job_id"],
@@ -97,8 +118,16 @@ async def plan_query(request: PlanRequest):
             plan=result["plan"],
         )
 
+    except ValueError as e:
+        print(f"❌ Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Planning error for job {request.job_id}: {e}")
+        print(f"   Error type: {type(e).__name__}")
+        import traceback
+        print(f"   Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500, detail=f"Planning failed: {str(e)}")
 
 
 # @app.get("/jobs/{job_id}")
