@@ -218,9 +218,9 @@ aws lambda invoke \
 aws lambda invoke \
   --function-name "$LAMBDA_FUNCTION_ARN" \
   --payload '{"version":"2.0","routeKey":"POST /api/analyze","rawPath":"/api/analyze","headers":{"content-type":"application/json"},"requestContext":{"accountId":"'${AWS_ACCOUNT_ID}'","http":{"method":"POST","path":"/api/analyze","sourceIp":"127.0.0.1"}},"body":"{\"user_id\":\"user-123\",\"request_payload\":{\"user_query\":\"Find 3BHK apartments in Noida under 1 crore\"}}","isBase64Encoded":false}' \
+  --cli-binary-format raw-in-base64-out \
   /tmp/lambda-response.json && cat /tmp/lambda-response.json | jq '.'
 ```
-
 ### Get Job Status
 
 ```bash

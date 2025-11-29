@@ -6,6 +6,7 @@ Environment-based configuration:
 - ENV=dev/stage/production: Uses AWS RDS, deployed Planner Agent
 """
 
+import json
 import logging
 import os
 import uuid
@@ -15,8 +16,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, validator
 from database import get_db_session, init_db
 
-from .clients import PlannerClient
-from .services import ApiService
+from .clients import LocalPlannerClient
+from .services import ApiService, SQSService
+from .utils import create_planning_payload
 
 # =============================================================================
 # CONFIGURATION
@@ -38,6 +40,11 @@ PLANNER_AGENT_URL = os.getenv("PLANNER_AGENT_URL", "http://localhost:8081")
 
 logger.info(f"Starting Backend API in {ENV} environment")
 logger.info(f"Database connection will use ENV={ENV} settings")
+
+
+# =============================================================================
+# FASTAPI APPLICATION
+# =============================================================================
 
 # Create FastAPI app with /api prefix
 app = FastAPI(
@@ -93,12 +100,16 @@ async def analyze(request: AnalyzeRequest):
         if ENV == "local":
             # Local: Make HTTP call to planner agent
             logger.info("Using local planner agent via HTTP")
-            planner_client = PlannerClient()
-            result = await planner_client.create_plan(
+            local_planner = LocalPlannerClient()
+
+            # Create standardized payload
+            payload = create_planning_payload(
                 job_id=job_id,
                 user_query=user_query,
-                user_id=request.user_id,
+                user_id=request.user_id
             )
+
+            result = await local_planner.send_planning_request(payload)
 
             return {
                 "job_id": job_id,
@@ -107,9 +118,29 @@ async def analyze(request: AnalyzeRequest):
 
         else:
             # Production: Send to SQS
-            logger.info("Using SQS for production")
-            # TODO: Implement SQS message sending
-            raise NotImplementedError("SQS integration not yet implemented")
+            logger.info("Using SQS for production environment")
+
+            try:
+                # Create standardized payload
+                payload = create_planning_payload(
+                    job_id=job_id,
+                    user_query=user_query,
+                    user_id=request.user_id
+                )
+
+                sqs_result = SQSService.send_message_to_queue(payload)
+
+                return {
+                    "job_id": job_id,
+                    "message": "Query submitted for analysis",
+                    "sqs_message_id": sqs_result["sqs_message_id"],
+                }
+
+            except Exception as sqs_error:
+                logger.error(
+                    f"Failed to send message to SQS for job_id={job_id}: {sqs_error}")
+                raise HTTPException(
+                    status_code=500, detail=f"Failed to submit job: {str(sqs_error)}")
 
     except Exception as e:
         logger.error(f"Error in analyze: {e}")

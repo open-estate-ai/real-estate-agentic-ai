@@ -20,11 +20,10 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     Expected SQS message body format:
     {
-        "query": "Find 3BHK apartments in Noida",
+        "job_id": "123e4567-e89b-12d3-a456-426614174000",
         "user_id": "user-123",
-        "context": {
-            "budget": 10000000,
-            "location": "Noida"
+        "request_payload": {
+            "user_query": "Find 3BHK apartments in Noida"
         }
     }
 
@@ -51,15 +50,15 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             print(f"📝 Body: {json.dumps(body)}")
 
             # Extract request data
+            job_id = body.get('job_id')
             user_id = body.get('user_id')
             request_payload = body.get('request_payload', {})
             user_query = request_payload.get('user_query')
 
+            if not job_id:
+                raise ValueError("Missing 'job_id' in message body")
             if not user_query:
                 raise ValueError("Missing 'user_query' in request_payload")
-
-            # Generate UUID for job ID (database expects UUID format)
-            job_id = str(uuid.uuid4())
 
             # Process the planning request
             result = asyncio.run(process_planning_request(
@@ -153,12 +152,10 @@ if __name__ == "__main__":
             {
                 "messageId": f"test-{uuid.uuid4()}",
                 "body": json.dumps({
-                    "query": "Find 3BHK luxury apartments in Bangalore under 2 crore",
+                    "job_id": str(uuid.uuid4()),
                     "user_id": "test-user-123",
-                    "context": {
-                        "budget": 20000000,
-                        "city": "Bangalore",
-                        "bedrooms": 3,
+                    "request_payload": {
+                        "user_query": "Find 3BHK luxury apartments in Bangalore under 2 crore",
                     }
                 })
             }

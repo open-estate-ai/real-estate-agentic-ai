@@ -52,6 +52,10 @@ module "tf_lambda_backend_api" {
       # SSM Parameter Store paths for credentials
       DB_USERNAME_SSM_PARAM = module.aurora_serverless_pg.db_username_parameter_name
       DB_PASSWORD_SSM_PARAM = module.aurora_serverless_pg.db_password_parameter_name
+
+      # SQS QUEUE URL for analysis jobs
+      SQS_QUEUE_URL = aws_sqs_queue.analysis_jobs.url
+
     },
     # Only add planner agent URL if configured
     var.planner_agent_url != "" ? {

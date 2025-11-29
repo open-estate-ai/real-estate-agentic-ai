@@ -1,5 +1,5 @@
 """Client modules for external service communication."""
 
-from .planner_client import PlannerClient
+from .planner_client import LocalPlannerClient
 
-__all__ = ["PlannerClient"]
+__all__ = ["LocalPlannerClient"]
