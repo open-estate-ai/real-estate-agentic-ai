@@ -2,6 +2,8 @@ locals {
   resource_name_prefix_hyphenated = format("%s-%s", lower(var.env), lower(var.project_name))
 }
 
+# Data source for current caller identity
+data "aws_caller_identity" "current" {}
 
 # DB Subnet Group (using default VPC)
 data "aws_vpc" "default" {

@@ -32,15 +32,27 @@ variable "database_user" {
   description = "Database username (IAM-enabled user for RDS Serverless)"
   default     = ""
 }
-
-variable "aws_region" {
-  type        = string
-  description = "AWS region for RDS IAM authentication"
-  default     = "us-east-1"
-}
-
 variable "planner_agent_url" {
   type        = string
   description = "Planner Agent HTTP endpoint URL"
   default     = ""
+}
+
+
+variable "s3_vector_bucket_name" {
+  type = string
+  description = "S3 Vector Bucket Name"
+  default = ""
+}
+
+variable "sagemaker_endpoint" {
+  type        = string
+  description = "SageMaker Endpoint Name for embedding generation"
+  default     = ""
+}
+
+variable "bedrock_region" {
+  type        = string
+  description = "AWS Region for Bedrock service"
+  default     = "us-east-1"
 }

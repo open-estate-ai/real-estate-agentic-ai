@@ -12,6 +12,11 @@ module "aurora_serverless_pg" {
 }
 
 
+#########################################################################################
+################################################################
+# Backend API Lambda Function
+###########################################################################################
+#########################################################################################
 
 module "tf_lambda_backend_api" {
   source         = "../tf-modules/tf-lambda"
@@ -21,11 +26,16 @@ module "tf_lambda_backend_api" {
   lambda_src_dir = "api"
 
   # Attach Aurora access policy to Lambda's own role
-  additional_iam_policy_arns = [module.aurora_serverless_pg.aurora_access_policy_arn]
+  additional_iam_policy_arns = [
+    module.aurora_serverless_pg.aurora_access_policy_arn,
+    aws_iam_policy.sqs_access_policy_from_producer_lambdas.arn,
+  ]
 
   # VPC configuration to access Aurora in private subnets
   vpc_subnet_ids         = data.aws_subnets.default.ids
-  vpc_security_group_ids = [module.aurora_serverless_pg.lambda_security_group_id]
+  vpc_security_group_ids = [
+    module.aurora_serverless_pg.lambda_security_group_id,
+  ]
 
   environment_variables = merge(
     {
@@ -50,6 +60,20 @@ module "tf_lambda_backend_api" {
   )
 }
 
+########################################################################################
+#######################################################################
+# Planner Agent Lambda Function
+###############################################################################################
+########################################################################################
+
+
+# SQS trigger for Planner
+resource "aws_lambda_event_source_mapping" "planner_sqs" {
+  event_source_arn = aws_sqs_queue.analysis_jobs.arn
+  function_name    = module.tf_lambda_planner_agent.lambda_function_arn
+  batch_size       = 1
+}
+
 module "tf_lambda_planner_agent" {
   source         = "../tf-modules/tf-lambda"
   env            = var.env
@@ -58,7 +82,14 @@ module "tf_lambda_planner_agent" {
   lambda_src_dir = "agents/planner"
 
   # Attach Aurora access policy to Lambda's own role
-  additional_iam_policy_arns = [module.aurora_serverless_pg.aurora_access_policy_arn]
+  additional_iam_policy_arns = [
+    module.aurora_serverless_pg.aurora_access_policy_arn,
+    aws_iam_policy.sqs_access_policy_from_consumer_lambdas.arn,
+    aws_iam_policy.s3_vector_access_policy.arn,
+    aws_iam_policy.invoke_all_agents_lambda_invoke_policy.arn,
+    aws_iam_policy.lambda_sagemaker_access_policy.arn,
+    aws_iam_policy.bedrock_invoke_policy.arn,
+  ]
 
   # VPC configuration to access Aurora in private subnets
   vpc_subnet_ids         = data.aws_subnets.default.ids

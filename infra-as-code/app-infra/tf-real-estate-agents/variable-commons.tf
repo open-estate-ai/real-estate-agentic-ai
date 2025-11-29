@@ -5,7 +5,7 @@ variable "env" {
 
 variable "resource_region" {
   type        = string
-  description = "Region in which you want to create resources"
+  description = "AWS Region in which you want to create resources"
 }
 variable "default_tags" {
   description = "Default set of tags to apply to AWS resources"
