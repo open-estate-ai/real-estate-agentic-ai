@@ -251,7 +251,7 @@ After deploying with API Gateway, you can test the endpoints directly via HTTP:
 ### Set API Gateway URL
 
 ```bash
-export API_GATEWAY_URL="https://wosw4pw480.execute-api.us-east-1.amazonaws.com"
+export API_GATEWAY_URL="https://<api-gateway-id>.execute-api.us-east-1.amazonaws.com"
 ```
 
 ### Submit Analysis Request
