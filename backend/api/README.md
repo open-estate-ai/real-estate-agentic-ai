@@ -244,6 +244,70 @@ aws logs tail /aws/lambda/${LAMBDA_FUNCTION_NAME} --follow
 aws logs tail /aws/lambda/${LAMBDA_FUNCTION_NAME} --since 10m --format short
 ```
 
+## Test via API Gateway (Post-Deployment)
+
+After deploying with API Gateway, you can test the endpoints directly via HTTP:
+
+### Set API Gateway URL
+
+```bash
+export API_GATEWAY_URL="https://wosw4pw480.execute-api.us-east-1.amazonaws.com"
+```
+
+### Submit Analysis Request
+
+```bash
+curl -X POST ${API_GATEWAY_URL}/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "user-123",
+    "request_payload": {
+      "user_query": "Find 3BHK apartments in Noida under 1 crore"
+    }
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "job_id": "b0537f4e-7a27-47b6-bc7a-5310ac2de943",
+  "message": "Query submitted for analysis",
+  "sqs_message_id": "abc123..."
+}
+```
+
+### Get Job Status
+
+```bash
+# Replace with actual job_id from analyze response
+export JOB_ID="b0537f4e-7a27-47b6-bc7a-5310ac2de943"
+
+curl -X GET "${API_GATEWAY_URL}/api/jobs/${JOB_ID}" \
+  -H "accept: application/json"
+```
+
+**Expected Response:**
+```json
+{
+  "job_id": "b0537f4e-7a27-47b6-bc7a-5310ac2de943",
+  "type": "planning",
+  "status": "completed",
+  "request_payload": {
+    "user_query": "Find 3BHK apartments in Noida under 1 crore"
+  },
+  "output": {
+    "plan": "..."
+  }
+}
+```
+
+### Health Check
+
+```bash
+curl -X GET "${API_GATEWAY_URL}/api/health" \
+  -H "accept: application/json"
+```
+
 ## Environment Variables
 
 | Variable | Description | Default |
