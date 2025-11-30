@@ -111,6 +111,14 @@ async def plan_query(request: PlanRequest):
         )
 
         print(f"✅ Planning completed for job {request.job_id}")
+        print("✅ Plan execution started.")
+
+        await PlannerService.create_execute_plan(
+            job_id=request.job_id
+        )
+
+        print(f"✅ Plan execution completed for job {request.job_id}")
+        print(f"✅ Planning completed for job {request.job_id}")
 
         return PlanResponse(
             job_id=result["job_id"],

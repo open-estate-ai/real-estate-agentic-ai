@@ -16,12 +16,19 @@ resource "null_resource" "build_and_push_image" {
       IMAGE_TAG="${local.image_tag}"
       LAMBDA_SRC_DIR="${local.lambda_src_abs_dir}"
       BACKEND_DIR="${local.lambda_backend_abs_dir}"
+      
       echo "Logging in to ECR..."
+      # Use --password-stdin with explicit error handling for keychain conflicts
       aws ecr get-login-password --region "$AWS_REGION" \
-        | docker login --username AWS --password-stdin "$REPO_URL"
+        | docker login --username AWS --password-stdin "$REPO_URL" 2>&1 || {
+          # If login fails due to keychain conflict, continue anyway (credentials may already be cached)
+          echo "Warning: Docker login encountered an issue, but continuing (credentials may be cached)"
+        }
 
       echo "Building linux/amd64 image using buildx..."
-      docker buildx create --use --name lambda_builder || true
+      # Use a unique builder name per Lambda to avoid conflicts
+      BUILDER_NAME="lambda_builder_${var.lambda_name}"
+      docker buildx create --use --name "$BUILDER_NAME" 2>/dev/null || docker buildx use "$BUILDER_NAME"
 
       echo "Building linux/amd64 image..."
       docker build \

@@ -6,5 +6,7 @@ resources:
   - service_postgres.yaml
   - deployment_planner.yaml
   - deployment_api.yaml
+  - deployment_legal.yaml
   - service_api.yaml
   - service_planner.yaml
+  - service_legal.yaml

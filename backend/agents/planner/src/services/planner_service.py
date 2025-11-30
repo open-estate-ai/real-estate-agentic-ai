@@ -4,12 +4,15 @@ Planner Service - Business logic for planning agent.
 This service layer sits between the API/Lambda handler and the repository layer.
 It handles the core business logic for creating plans and managing jobs.
 """
-
+import os
 import uuid
 from typing import Any
 
 from database import JobRepository, JobStatus, JobType, get_db_session
 from ..planner import create_plan
+from ..tools import PlannerContext, PlannerTools
+from agents import Agent, Runner, trace
+from agents.extensions.models.litellm_model import LitellmModel
 
 
 class PlannerService:
@@ -83,17 +86,117 @@ class PlannerService:
                 )
             raise
 
-    # @staticmethod
-    # def get_job_details(job_id: str) -> dict[str, Any] | None:
-    #     """Get job details by ID."""
-    #     with get_db_session() as session:
-    #         job = JobRepository.get_job(session=session, job_id=job_id)
-    #         return job.to_dict() if job else None
+    @staticmethod
+    async def create_execute_plan(
+        job_id: str
+    ) -> dict[str, Any]:
+        """
+        Execute the plan by invoking downstream agents.
 
-    # @staticmethod
-    # def get_job_children(job_id: str) -> list[dict[str, Any]]:
-    #     """Get all child jobs for a parent job."""
-    #     with get_db_session() as session:
-    #         children = JobRepository.get_child_jobs(
-    #             session=session, parent_job_id=job_id)
-    #         return [child.to_dict() for child in children]
+        Args:
+            job_id: The job ID for which to execute the plan
+
+        Returns:
+            Dictionary containing execution results
+        """
+        print(f"🚀 Starting plan execution for job {job_id}")
+
+        try:
+            # Get job details from database for input
+            with get_db_session() as session:
+                job = JobRepository.get_job(session=session, job_id=job_id)
+
+                if not job:
+                    raise ValueError(f"Job {job_id} not found")
+
+                # Extract user query for agent input
+                user_query = job.request_payload.get("user_query", "")
+
+                print(f"📋 Retrieved job data - Query: '{user_query}'")
+
+            # Create context with only job_id
+            context = PlannerContext(job_id=job_id)
+
+            # Setup model and tools
+            model_id = os.getenv(
+                "LLM_MODEL", "bedrock/openai.gpt-oss-120b-1:0")
+            model = LitellmModel(model=f"{model_id}")
+            tools = [PlannerTools.invoke_legal_agent]
+
+            PLANNER_INSTRUCTIONS = """
+               You coordinate and create a detailed plan for real estate related user queries and call other agents as needed.
+               Tools at your disposal:
+                - invoke_legal_agent: Use this tool to get legal advice on real estate matters.
+
+               Use only the tools listed above to create a comprehensive plan. 
+            """
+
+            # Create and run agent
+            agent = Agent[PlannerContext](
+                name="Real Estate Planner",
+                instructions=PLANNER_INSTRUCTIONS,
+                model=model,
+                tools=tools
+            )
+
+            print(f"🤖 Running agent with query: '{user_query}'")
+
+            result = await Runner.run(
+                agent,
+                input=f"Execute the plan for this query: {user_query}",
+                context=context,
+                max_turns=20
+            )
+
+            print(f"✅ Agent execution completed")
+            print(f"   Result type: {type(result)}")
+            print(f"   Result: {result}")
+
+            # Update job with execution results
+            with get_db_session() as session:
+                JobRepository.update_job(
+                    session=session,
+                    job_id=job_id,
+                    status=JobStatus.COMPLETED,
+                    response_payload={
+                        "plan_execution": {
+                            "result": str(result),
+                            "all_messages": result.all_messages() if hasattr(result, 'all_messages') else []
+                        }
+                    }
+                )
+
+            return {
+                "job_id": job_id,
+                "status": "completed",
+                "result": str(result)
+            }
+
+        except Exception as e:
+            print(f"❌ Plan execution failed for job {job_id}: {e}")
+
+            # Update job status to FAILED
+            with get_db_session() as session:
+                JobRepository.update_job(
+                    session=session,
+                    job_id=job_id,
+                    status=JobStatus.FAILED,
+                    error_message=str(e)
+                )
+
+            raise
+
+        # @staticmethod
+        # def get_job_details(job_id: str) -> dict[str, Any] | None:
+        #     """Get job details by ID."""
+        #     with get_db_session() as session:
+        #         job = JobRepository.get_job(session=session, job_id=job_id)
+        #         return job.to_dict() if job else None
+
+        # @staticmethod
+        # def get_job_children(job_id: str) -> list[dict[str, Any]]:
+        #     """Get all child jobs for a parent job."""
+        #     with get_db_session() as session:
+        #         children = JobRepository.get_child_jobs(
+        #             session=session, parent_job_id=job_id)
+        #         return [child.to_dict() for child in children]

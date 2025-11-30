@@ -76,3 +76,30 @@ resource "aws_vpc_endpoint" "sqs" {
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
 }
+
+resource "aws_vpc_endpoint" "lambda" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.resource_region}.lambda"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "bedrock" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.resource_region}.bedrock"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}
+
+resource "aws_vpc_endpoint" "bedrock-runtime" {
+  vpc_id              = data.aws_vpc.default.id
+  service_name        = "com.amazonaws.${var.resource_region}.bedrock-runtime"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = data.aws_subnets.default.ids
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+}

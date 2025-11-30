@@ -1,7 +1,7 @@
 [project]
-name = "planner-agent"
+name = "legal-agent"
 version = "0.1.0"
-description = "Planner agent for real estate agentic AI"
+description = "Legal agent for real estate agentic AI"
 readme = "README.md"
 requires-python = ">=3.12"
 
