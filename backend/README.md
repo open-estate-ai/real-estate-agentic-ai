@@ -35,8 +35,13 @@ graph TB
         subgraph Compute["⚡ AWS Lambda & API Gateway"]
             APIGW[🌐 AWS API Gateway<br/>HTTP Endpoint]:::apigwStyle
             LambdaAPI[🔶 Lambda: Backend API<br/>FastAPI Handler]:::lambdaStyle
-            SQS[📨 AWS SQS Queue<br/>Async Processing]:::sqsStyle
-            LambdaPlanner[🔶 Lambda: Planner Agent<br/>LLM Analysis]:::lambdaStyle
+            SQS[📨 AWS SQS Queue<br/>Async Processing]:::sqsStyle            
+        end
+
+        subgraph MultiStageAgent["🤖 Multi Stage Agents"]
+          LambdaPlanner[🔶 Lambda: Planner Agent<br/>LLM Analysis]:::lambdaStyle
+          LambdaLegal[🔶 Lambda: Legal Agent<br/>LLM Analysis]:::lambdaStyle
+          LambdaSubAgents[🔶 Lambda: Sub Agents<br/>LLM Analysis]:::lambdaStyle
         end
         
         subgraph Storage["💾 AWS Data & Storage Services"]
@@ -53,10 +58,24 @@ graph TB
         LambdaAPI --> SQS
         LambdaAPI --> DB
         SQS --> LambdaPlanner
+        LambdaPlanner --> LambdaLegal
+        LambdaPlanner --> LambdaSubAgents
         LambdaPlanner --> DB
         LambdaPlanner --> LLM
         LambdaPlanner --> SageMaker
         LambdaPlanner --> S3Vector
+
+        LambdaLegal --> DB
+        LambdaLegal --> LLM
+        LambdaLegal --> SageMaker
+        LambdaLegal --> S3Vector
+
+        LambdaSubAgents --> DB
+        LambdaSubAgents --> LLM
+        LambdaSubAgents --> SageMaker
+        LambdaSubAgents --> S3Vector
+
+        
     end
     
     User --> APIGW
@@ -64,6 +83,8 @@ graph TB
     Shared[📚 Shared Modules<br/>Models & Repository]:::sharedStyle
     LambdaAPI -.- Shared
     LambdaPlanner -.- Shared
+    LambdaLegal -.- Shared
+    LambdaSubAgents -.- Shared
     
     classDef userStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px,color:#000
     classDef apigwStyle fill:#ff9900,stroke:#ff6600,stroke-width:3px,color:#fff
