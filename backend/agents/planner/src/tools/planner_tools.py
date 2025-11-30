@@ -18,13 +18,20 @@ class PlannerTools:
     @function_tool
     async def invoke_legal_agent(wrapper: RunContextWrapper[PlannerContext]) -> str:
         """
-        Invokes the legal agent to create a plan based on the job ID in the context.
+        Call the legal agent to analyze real estate queries and provide legal insights.
+        Use this tool for any real estate related query that needs legal analysis, property search, or compliance checks.
+
+        This tool handles:
+        - Property searches and filtering
+        - Legal compliance verification  
+        - RERA compliance checks
+        - Property documentation analysis
 
         Args:
             wrapper (RunContextWrapper[PlannerContext]): The run context wrapper containing the planner context.
 
         Returns:
-            str: The response from the legal agent.
+            str: JSON string with the legal agent's response and analysis.
         """
         print("🔧 Invoking Legal Agent Tool...")
         job_id = wrapper.context.job_id
@@ -35,16 +42,18 @@ class PlannerTools:
         if ENV == "local":
             print(
                 f"🔧 Invoking Legal Agent locally at {LEGAL_AGENT_URL} for job {job_id}")
-            return await HttpClient.post(
+            result = await HttpClient.post(
                 host=LEGAL_AGENT_URL,
                 path="/legal-agent",
                 payload=payload
             )
+            return str(result)
         else:
             print(f"🔧 Invoking Legal Agent via Lambda for job {job_id}")
-            lambda_client = LambdaClient()
-            return await lambda_client.invoke_lambda_agent(
+            # Call static method directly
+            result = await LambdaClient.invoke_lambda_agent(
                 agent_name="legal-agent",
                 function_name=LEGAL_AGENT_FUNCTION_NAME,
                 payload=payload,
             )
+            return result  # Already a JSON string from invoke_lambda_agent

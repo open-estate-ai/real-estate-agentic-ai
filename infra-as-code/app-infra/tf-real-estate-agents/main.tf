@@ -137,6 +137,8 @@ module "tf_lambda_legal_agent" {
   region         = var.resource_region
   lambda_name    = "${var.project_name}-legal-agent"
   lambda_src_dir = "agents/legal"
+  lambda_timeout = 300  # 5 minutes for LLM operations
+
 
   # Attach Aurora access policy to Lambda's own role
   additional_iam_policy_arns = [

@@ -124,11 +124,16 @@ class PlannerService:
             tools = [PlannerTools.invoke_legal_agent]
 
             PLANNER_INSTRUCTIONS = """
-               You coordinate and create a detailed plan for real estate related user queries and call other agents as needed.
-               Tools at your disposal:
-                - invoke_legal_agent: Use this tool to get legal advice on real estate matters.
-
-               Use only the tools listed above to create a comprehensive plan. 
+               You are a real estate planning coordinator. For EVERY real estate query, you MUST call the legal agent tool.
+               
+               IMPORTANT: Always use the invoke_legal_agent tool for ALL real estate queries including:
+               - Property searches (apartments, houses, land)
+               - Location-based queries (specific cities or areas)
+               - Budget-based filtering
+               - Legal compliance questions
+               - Any real estate related question
+               
+               DO NOT try to answer directly. ALWAYS invoke the tool first, then provide the response.
             """
 
             # Create and run agent
