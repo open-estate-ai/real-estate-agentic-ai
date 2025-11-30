@@ -84,6 +84,7 @@ module "tf_lambda_planner_agent" {
   region         = var.resource_region
   lambda_name    = "${var.project_name}-planner-agent"
   lambda_src_dir = "agents/planner"
+  lambda_timeout = 300  # 5 minutes for LLM operations and agent invocations
 
   # Attach Aurora access policy to Lambda's own role
   additional_iam_policy_arns = [
