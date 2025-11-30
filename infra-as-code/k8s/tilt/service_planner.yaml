@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: planner-agent
+  labels:
+    app: planner-agent
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+  selector:
+    app: planner-agent
+  type: ClusterIP
