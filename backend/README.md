@@ -1,181 +1,71 @@
 # Backend
 
-Multi-agent system for real estate AI with layered architecture.
+The backend service for our real estate AI system.
 
 ## What's Inside
 
-- **API Service** - Entry point that receives user queries and coordinates agents
-- **Agents** - Specialized services (Planner, Search, Valuation, etc.)
-- **Shared** - Common modules for database, models, and utilities
+- **API Service** - Receives user queries and coordinates the work
+- **Agents** - Specialized services that handle different tasks (planning, legal checks, etc.)
+- **Shared** - Common code used by all services
 
-## Local Development
+## Running Locally
 
-Run all services with Tilt:
+Start all services:
 
 ```bash
 cd real-estate-agentic-ai
 tilt up
 ```
 
-This starts:
-- Backend API on port 8080
-- Planner Agent on port 8081
+This runs:
+- Backend API (port 8080)
+- Planner Agent (port 8081)
 - PostgreSQL database
 
-## Architecture
 
-```mermaid
-%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff3e0','primaryTextColor':'#000','primaryBorderColor':'#ff9900','lineColor':'#ff9900','secondaryColor':'#e3f2fd','tertiaryColor':'#f3e5f5'}}}%%
-graph TB
-    User([👤 User]):::userStyle
-    
-    subgraph AWSCloud["☁️ AWS Cloud"]
-        direction TB
-        
-        subgraph Compute["⚡ AWS Lambda & API Gateway"]
-            APIGW[🌐 AWS API Gateway<br/>HTTP Endpoint]:::apigwStyle
-            LambdaAPI[🔶 Lambda: Backend API<br/>FastAPI Handler]:::lambdaStyle
-            SQS[📨 AWS SQS Queue<br/>Async Processing]:::sqsStyle            
-        end
+## How It Works
 
-        subgraph MultiStageAgent["🤖 Multi Stage Agents"]
-          LambdaPlanner[🔶 Lambda: Planner Agent<br/>LLM Analysis]:::lambdaStyle
-          LambdaLegal[🔶 Lambda: Legal Agent<br/>LLM Analysis]:::lambdaStyle
-          LambdaSubAgents[🔶 Lambda: Sub Agents<br/>LLM Analysis]:::lambdaStyle
-        end
-        
-        subgraph Storage["💾 AWS Data & Storage Services"]
-            DB[(🗄️ Amazon Aurora<br/>PostgreSQL)]:::dbStyle
-            S3Vector[📦 S3 Vector Storage<br/>Embeddings & RAG]:::s3Style
-        end
-        
-        subgraph AI["🤖 AWS AI/ML Services"]
-            LLM[🤖 AWS Bedrock<br/>Claude Sonnet]:::llmStyle
-            SageMaker[🧠 SageMaker Endpoint<br/>Embeddings Model]:::sagemakerStyle
-        end
-        
-        APIGW --> LambdaAPI
-        LambdaAPI --> SQS
-        LambdaAPI --> DB
-        SQS --> LambdaPlanner
-        LambdaPlanner --> LambdaLegal
-        LambdaPlanner --> LambdaSubAgents
-        LambdaPlanner --> DB
-        LambdaPlanner --> LLM
-        LambdaPlanner --> SageMaker
-        LambdaPlanner --> S3Vector
+When deployed to AWS:
 
-        LambdaLegal --> DB
-        LambdaLegal --> LLM
-        LambdaLegal --> SageMaker
-        LambdaLegal --> S3Vector
+1. User sends request → API Gateway
+2. Backend Lambda processes it → sends to SQS queue
+3. Planner Agent Lambda picks up the job
+4. Planner coordinates other agents as needed
+5. Results saved to database
 
-        LambdaSubAgents --> DB
-        LambdaSubAgents --> LLM
-        LambdaSubAgents --> SageMaker
-        LambdaSubAgents --> S3Vector
+### AWS Services Used
 
-        
-    end
-    
-    User --> APIGW
-    
-    Shared[📚 Shared Modules<br/>Models & Repository]:::sharedStyle
-    LambdaAPI -.- Shared
-    LambdaPlanner -.- Shared
-    LambdaLegal -.- Shared
-    LambdaSubAgents -.- Shared
-    
-    classDef userStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px,color:#000
-    classDef apigwStyle fill:#ff9900,stroke:#ff6600,stroke-width:3px,color:#fff
-    classDef lambdaStyle fill:#ff9900,stroke:#ff6600,stroke-width:3px,color:#fff
-    classDef sqsStyle fill:#ff6b9d,stroke:#c2185b,stroke-width:2px,color:#fff
-    classDef dbStyle fill:#3f51b5,stroke:#1a237e,stroke-width:2px,color:#fff
-    classDef llmStyle fill:#00bcd4,stroke:#006064,stroke-width:2px,color:#fff
-    classDef sagemakerStyle fill:#00bcd4,stroke:#006064,stroke-width:2px,color:#fff
-    classDef s3Style fill:#569a31,stroke:#2d5016,stroke-width:2px,color:#fff
-    classDef sharedStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
-```
+- **API Gateway** - HTTP endpoints
+- **Lambda** - Runs our code
+- **SQS** - Message queue
+- **Aurora PostgreSQL** - Database
+- **Bedrock (Claude)** - AI capabilities
+- **SageMaker** - Embeddings
+- **S3** - Vector storage
 
-## AWS Cloud Architecture
-
-### ☁️ AWS Cloud Flow
-
-**User Request Flow:**
-1. **👤 User** → HTTP request
-2. **🌐 AWS API Gateway** → Routes request to Lambda
-3. **🔶 Lambda (Backend API)** → Processes request, sends to SQS
-4. **📨 SQS Queue** → Asynchronous message delivery
-5. **🔶 Lambda (Planner Agent)** → LLM analysis & job processing
-6. **Storage & AI** → Database writes, vector search, LLM inference
-
-### AWS Services by Category
-
-**Compute & Networking** (Orange):
-- **API Gateway** - Managed HTTP endpoint with SSL/TLS
-- **Lambda Functions** - Serverless compute for API and agent logic
-
-**Messaging** (Pink):
-- **SQS** - Message queue for reliable async processing
-
-**Data & Storage** (Blue/Green):
-- **Aurora PostgreSQL** - Managed relational database
-- **S3 Vector Storage** - Object storage for embeddings
-
-**AI/ML** (Cyan):
-- **Bedrock** - Managed LLM service (Claude Sonnet) for text generation
-- **SageMaker Endpoint** - ML inference endpoint for embeddings generation
-
-**Shared Code** (Light Green):
-- **Shared Modules** - Common code used by all Lambda functions
-
-### Local Development
-For local testing, use Tilt to run FastAPI services on ports 8080 (API) and 8081 (Planner). See [Testing](#quick-test) section below.
-
-The system uses a clean layered architecture:
-- **API Layer** - HTTP endpoints and request handling
-- **Service Layer** - Business logic and orchestration
-- **Repository Layer** - Database operations
-- **Model Layer** - Data structures and schemas
+The architecture diagram above shows how everything connects.
 
 ## Components
 
-### Backend API Service
+### API Service
 
-Entry point for the system. Routes requests to appropriate agents.
+The entry point. Receives user queries and queues them for processing.
 
-[See API README](api/README.md) for details on:
-- Running locally with Tilt
-- Testing endpoints
-- Running as Lambda locally
-- Environment variables
+See [api/README.md](api/README.md) for more details.
 
-### Agents
+### Planner Agent
 
-#### Planner Agent
+Reads from the queue, analyzes queries, and coordinates other agents.
 
-The first agent in the pipeline. Reads from SQS, analyzes queries with LLM, creates execution plans.
+See [agents/planner/README.md](agents/planner/README.md) for more details.
 
-[See Planner Agent README](agents/planner/README.md) for details on:
-- Running locally with Tilt
-- Testing with sample queries
-- Running as Lambda locally
-- Lambda deployment
+### Shared Code
 
-### Shared Modules
+Common modules for database access, models, and utilities. Located in `shared/`.
 
-Common code used across all services.
+## Testing Locally
 
-**Database Module:**
-- SQLAlchemy models (Job, etc.)
-- Repository layer for CRUD operations
-- Database session management
-
-**Location:** `shared/`
-
-## Local Test
-
-Test the full flow locally:
+Test the system:
 
 ```bash
 # Submit a query
@@ -190,9 +80,9 @@ curl -X POST http://localhost:9000/api/analyze \
 curl http://localhost:9000/api/jobs/{job_id}
 ```
 
-## Test via API Gateway (Post-Deployment)
+## Testing in AWS
 
-After deploying with API Gateway, you can test the endpoints directly via HTTP:
+After deploying, test via API Gateway:
 
 ### Set API Gateway URL
 
