@@ -1,121 +1,122 @@
-# real-estate-agentic-ai
+# Real Estate Agentic AI
 
-Agentic AI workflows that classify intent, plan tasks, and orchestrate
-specialized real estate domain agents to produce actionable insights (search,
-valuation, legal checks, verification, summarization).
+A simple multi-agent system for real estate queries. It helps users find properties, check legal compliance, and get valuations by coordinating specialized AI agents.
 
-## Why
+## What It Does
 
-Real estate questions are multi-step: users want availability + pricing +
-compliance + context. A single LLM prompt is brittle. This project builds a
-composable agent layer that can classify, plan, execute, and trace results
-across data and model boundaries.
+- Analyzes user queries about real estate
+- Routes requests to specialized agents (search, legal, valuation)
+- Returns helpful insights and recommendations
 
 ---
 
-## High-Level Flow
 
-1. User query → Orchestrator receives request
-2. Intent Classifier extracts intent + slots (city, budget, purpose, etc.)
-3. (Planned) Planner builds a DAG of agent tasks
-4. Search Agent retrieves listings & related context (market stats, geo
-  expansion)
-5. Specialized agents (valuation, legal, verification) enrich / validate
-6. Summarizer Agent returns structured + narrative result
+## Architecture
 
-Refer Architecture [here](https://open-estate-ai.github.io/real-estate-docs/architecture/overview/)
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#fff3e0','primaryTextColor':'#000','primaryBorderColor':'#ff9900','lineColor':'#ff9900','secondaryColor':'#e3f2fd','tertiaryColor':'#f3e5f5'}}}%%
+graph TB
+    User([👤 User]):::userStyle
+    
+    subgraph AWSCloud["☁️ AWS Cloud"]
+        direction TB
+        
+        subgraph Compute["⚡ AWS Lambda & API Gateway"]
+            APIGW[🌐 AWS API Gateway<br/>HTTP Endpoint]:::apigwStyle
+            LambdaAPI[🔶 Lambda: Backend API<br/>FastAPI Handler]:::lambdaStyle
+            SQS[📨 AWS SQS Queue<br/>Async Processing]:::sqsStyle            
+        end
 
----
+        subgraph MultiStageAgent["🎯 Multi Stage Agents"]
+          LambdaPlanner[🔶 Lambda: Planner Agent<br/>LLM Analysis]:::plannerStyle
+          LambdaLegal[🔶 Lambda: Legal Agent<br/>LLM Analysis]:::legalStyle
+          LambdaSubAgents[🔶 Lambda: Sub Agents<br/>LLM Analysis]:::subAgentStyle
+        end
+        
+        subgraph Storage["💾 AWS Data & Storage Services"]
+            DB[(🗄️ Amazon Aurora<br/>PostgreSQL)]:::dbStyle
+            S3Vector[📦 S3 Vector Storage<br/>Embeddings & RAG]:::s3Style
+        end
+        
+        subgraph AI["🤖 AWS AI/ML Services"]
+            LLM[🤖 AWS Bedrock<br/>Claude Sonnet]:::llmStyle
+            SageMaker[🧠 SageMaker Endpoint<br/>Embeddings Model]:::sagemakerStyle
+        end
+        
+        style Compute fill:#fff3e0,stroke:#ff9900,stroke-width:3px
+        style MultiStageAgent fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+        style Storage fill:#e3f2fd,stroke:#2196f3,stroke-width:3px
+        style AI fill:#e0f7fa,stroke:#00bcd4,stroke-width:3px
+        
+        APIGW --> LambdaAPI
+        LambdaAPI --> SQS
+        LambdaAPI --> DB
+        SQS --> LambdaPlanner
+        LambdaPlanner --> LambdaLegal
+        LambdaPlanner --> LambdaSubAgents
+        LambdaPlanner --> DB
+        LambdaPlanner --> LLM
+        LambdaPlanner --> SageMaker
+        LambdaPlanner --> S3Vector
 
-## Agents
+        LambdaLegal --> DB
+        LambdaLegal --> LLM
+        LambdaLegal --> SageMaker
+        LambdaLegal --> S3Vector
 
-| Agent | Path | Status | Description |
-|-------|------|--------|-------------|
-| Orchestrator | [agents/orchestrator](agents/orchestrator/README.md) | Active | Receives query, classifies intent (current) and will route tasks |
-| Planner | [backend/agents/planner](backend/agents/planner/README.md) | **Active** | **Analyzes queries, creates execution plans, generates child jobs** |
-| Search | (planned) | Planned | Listing retrieval, geo expansion, ranking |
-| Valuation | (planned) | Planned | Market value & comparable analysis |
-| Legal | (planned) | Planned | Compliance & registry checks |
-| Verification | (planned) | Planned | Data integrity / fraud / anomaly signals |
-| Summarizer | (planned) | Planned | Consolidate multi-agent outputs |
+        LambdaSubAgents --> DB
+        LambdaSubAgents --> LLM
+        LambdaSubAgents --> SageMaker
+        LambdaSubAgents --> S3Vector
 
----
-
-## Quick Start (Local Development)
-
-Test the planner agent locally with Tilt:
-
-```bash
-# 1. Set up environment
-cp .env.tmpl .env
-# Edit .env with your credentials
-
-# 2. Start Tilt (PostgreSQL + Planner Agent)
-tilt up
-
-# 3. Test the agent
-cd backend/agents/planner
-python test_planner.py
-
-# Or manually:
-curl -X POST http://localhost:8081/plan \
-  -H "Content-Type: application/json" \
-  -d '{"job_id": "test-1", "query": "Find 3BHK in Noida", "user_id": "user-1"}'
+        
+    end
+    
+    User --> APIGW
+    
+    Shared[📚 Shared Modules<br/>Models & Repository]:::sharedStyle
+    LambdaAPI -.- Shared
+    LambdaPlanner -.- Shared
+    LambdaLegal -.- Shared
+    LambdaSubAgents -.- Shared
+    
+    style AWSCloud fill:#f5f5f5,stroke:#607d8b,stroke-width:4px,stroke-dasharray: 5 5
+    
+    classDef userStyle fill:#e1f5ff,stroke:#0288d1,stroke-width:2px,color:#000
+    classDef apigwStyle fill:#ff9900,stroke:#ff6600,stroke-width:3px,color:#fff
+    classDef lambdaStyle fill:#ff9900,stroke:#ff6600,stroke-width:3px,color:#fff
+    classDef sqsStyle fill:#ff6b9d,stroke:#c2185b,stroke-width:2px,color:#fff
+    classDef plannerStyle fill:#9c27b0,stroke:#6a1b9a,stroke-width:3px,color:#fff
+    classDef legalStyle fill:#673ab7,stroke:#4527a0,stroke-width:3px,color:#fff
+    classDef subAgentStyle fill:#3f51b5,stroke:#283593,stroke-width:3px,color:#fff
+    classDef dbStyle fill:#2196f3,stroke:#1565c0,stroke-width:2px,color:#fff
+    classDef llmStyle fill:#00bcd4,stroke:#006064,stroke-width:2px,color:#fff
+    classDef sagemakerStyle fill:#00bcd4,stroke:#006064,stroke-width:2px,color:#fff
+    classDef s3Style fill:#569a31,stroke:#2d5016,stroke-width:2px,color:#fff
+    classDef sharedStyle fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#000
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
+## How It Works
 
----
+1. User sends a query via API Gateway
+2. Backend API processes the request and queues it
+3. Planner Agent analyzes the query and coordinates other agents
+4. Specialized agents (Legal, Search, etc.) handle specific tasks
+5. Results are stored and returned to the user
 
-## Shared Infrastructure
+## Tech Stack
 
-### Database
+- **AWS Lambda** - Serverless compute
+- **API Gateway** - HTTP endpoints
+- **Aurora PostgreSQL** - Database
+- **Bedrock (Claude)** - AI/LLM capabilities
+- **SageMaker** - ML embeddings
+- **S3** - Vector storage
 
-All agents share a PostgreSQL database for job coordination:
+For detailed architecture, visit [our docs](https://open-estate-ai.github.io/real-estate-docs/architecture/overview/)
 
-- **Jobs Table**: Tracks all agent executions
-- **Connection pooling**: SQLAlchemy with configurable pool size
-- **Local dev**: PostgreSQL in Docker (via docker-compose)
-- **Production**: AWS RDS
+## Getting Started
 
-See [backend/shared/database/README.md](backend/shared/database/README.md) for details.
+See the [backend README](backend/README.md) for local development and testing instructions.
 
-### Development with Tilt
-
-Tilt provides:
-- Hot-reload for code changes
-- Unified dashboard for all services
-- Local Kubernetes environment
-- Easy debugging and logs
-
-Access Tilt UI: http://localhost:10350
-
----
-
-## Project Structure
-
-```
-real-estate-agentic-ai/
-├── backend/
-│   ├── agents/
-│   │   └── planner/              # ✅ Active agent
-│   │       ├── src/
-│   │       │   ├── main.py       # FastAPI app
-│   │       │   └── planner.py    # LLM-based planning logic
-│   │       ├── k8s/              # Kubernetes manifests
-│   │       ├── Dockerfile
-│   │       ├── pyproject.toml
-│   │       └── README.md
-│   └── shared/
-│       └── database/             # Shared DB module
-│           ├── connection.py     # Connection management
-│           ├── models.py         # Job model
-│           ├── repository.py     # CRUD operations
-│           └── migrations/       # SQL migrations
-├── docker-compose.yml            # PostgreSQL service
-├── Tiltfile                      # Tilt configuration
-├── .env.tmpl                     # Environment template
-├── QUICKSTART.md                 # Getting started guide
-└── README.md                     # This file
-```
 
